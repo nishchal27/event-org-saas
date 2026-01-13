@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                String   @id @default(cuid())
+  clerkOrgId        String   @unique
+  name              String
+  logo              String?
+  accentColor       String?  @default("#3b82f6")
+  backgroundColor   String?  @default("light")
+  fontStyle         String?  @default("default")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscription      Subscription?
+  events            Event[]
+  contacts          Contact[]
+  usage             Usage[]
+
+  @@map("organizations")
+}
+
+model Subscription {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  plan           String   // "free" | "monthly" | "yearly" | "enterprise"
+  status         String   // "active" | "canceled" | "past_due"
+  stripeCustomerId String? @unique
+  stripeSubscriptionId String? @unique
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Usage {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  month          Int      // 1-12
+  year           Int
+  eventsCreated  Int      @default(0)
+  contactsCount  Int      @default(0)
+  whatsappSent   Int      @default(0)
+  aiGenerations  Int      @default(0)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, month, year])
+  @@map("usage")
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  title           String
+  imageUrl        String?
+  eventDate       DateTime
+  startTime       String
+  endTime         String?
+  locationType    String   // "physical" | "online"
+  location        String
+  description     String   @db.Text
+  additionalNotes String?  @db.Text
+  
+  audienceType    String   // "all" | "selected" | "public"
+  isPublic        Boolean  @default(false)
+  publicSlug      String   @unique
+  
+  customField1Label String?
+  customField1Value String?
+  customField2Label String?
+  customField2Value String?
+  
+  registrationClosed Boolean @default(false)
+  deletedAt      DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  attendees      Attendee[]
+  selectedContacts EventContact[]
+
+  @@map("events")
+}
+
+model EventContact {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, contactId])
+  @@map("event_contacts")
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  name           String
+  phone          String
+  email          String?
+  tags           String[] // Array of tags
+  location       String?
+  notes          String?  @db.Text
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  events         EventContact[]
+  attendees      Attendee[]
+
+  @@unique([organizationId, phone])
+  @@map("contacts")
+}
+
+model Attendee {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  
+  name        String
+  phone       String
+  email       String?
+  status      String   // "confirmed" | "declined" | "maybe" | "pending"
+  
+  whatsappSent Boolean  @default(false)
+  whatsappSentAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([eventId, phone], name: "eventId_phone")
+  @@map("attendees")
+}
