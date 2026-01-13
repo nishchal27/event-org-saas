@@ -6,6 +6,7 @@ import { usageRouter } from './usage'
 import { whatsappRouter } from './whatsapp'
 import { aiRouter } from './ai'
 import { attendeeRouter } from './attendee'
+import { organizationRouter } from './organization'
 
 export const appRouter = router({
   event: eventRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   whatsapp: whatsappRouter,
   ai: aiRouter,
   attendee: attendeeRouter,
+  organization: organizationRouter,
 })
 
 export type AppRouter = typeof appRouter

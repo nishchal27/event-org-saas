@@ -215,17 +215,31 @@ CLOUDINARY_API_KEY="123456789012345"
 CLOUDINARY_API_SECRET="your-api-secret"
 ```
 
-#### Create Upload Preset
+#### Create Upload Preset (CRITICAL - Security Configuration)
 
 1. Go to **Settings > Upload**
 2. Scroll to **"Upload presets"**
 3. Click **"Add upload preset"**
 4. Name: `event_images`
-5. **Signing mode:** Choose one:
-   - **Unsigned** (easier, less secure) - for client-side uploads
-   - **Signed** (more secure) - requires server-side upload
-6. **Folder:** `events/` (optional, for organization)
-7. Save preset
+5. **Signing mode:** **Unsigned** ✅ (Safe if restrictions below are set)
+
+**⚠️ REQUIRED SECURITY SETTINGS (NON-NEGOTIABLE):**
+
+6. **Resource Type:** Set to **"Image"** only (NOT "Raw" or "Auto")
+7. **Allowed Formats:** Enable ONLY: `jpg`, `jpeg`, `png`, `webp`, `gif`
+8. **Max File Size:** Set to **5 MB** (5,242,880 bytes)
+9. **Folder:** Set to `events/` (for organization)
+10. **Overwrite:** Set to **"Unique filename"** or **"Deny"**
+11. **Access Mode:** Set to **"Public"**
+12. **Tags:** Add tag `event-image` (optional but recommended)
+
+**❌ DO NOT ALLOW:**
+- Raw files (security risk)
+- Unlimited file sizes (will drain bandwidth)
+- Arbitrary folders
+- Other file formats (PDF, DOC, etc.)
+
+**See `CLOUDINARY_SECURITY_GUIDE.md` for complete security checklist.**
 
 **Free Tier:** 25GB storage, 25GB bandwidth/month
 

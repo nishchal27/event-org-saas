@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
@@ -10,12 +10,15 @@ export const metadata: Metadata = {
   title: "EventOrg - Event Management Made Simple",
   description: "Create, manage, and invite attendees to your events with WhatsApp automation",
   manifest: "/manifest.json",
-  themeColor: "#3b82f6",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "EventOrg",
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: "#3b82f6",
 }
 
 export default function RootLayout({

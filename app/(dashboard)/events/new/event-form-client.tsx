@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { CldUploadWidget } from 'next-cloudinary'
+import { useToast } from '@/hooks/use-toast'
 
 const eventSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -40,8 +41,14 @@ const eventSchema = z.object({
 
 type EventFormData = z.infer<typeof eventSchema>
 
+// Cloudinary upload validation constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+
 export function EventFormClient() {
   const router = useRouter()
+  const { toast } = useToast()
   const [showCustomFields, setShowCustomFields] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
@@ -66,6 +73,16 @@ export function EventFormClient() {
   })
 
   const onSubmit = (data: EventFormData) => {
+    // Final validation before submit
+    if (imageUrl && !imageUrl.startsWith('https://res.cloudinary.com')) {
+      toast({
+        title: 'Invalid image',
+        description: 'Please upload a valid image from Cloudinary.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     createMutation.mutate({
       ...data,
       imageUrl: imageUrl || null,
@@ -104,10 +121,48 @@ export function EventFormClient() {
 
               <div>
                 <Label>Event Image / Banner (Optional)</Label>
+                <p className="mb-2 text-xs text-gray-500">
+                  Max size: 5MB. Formats: JPG, PNG, WebP, GIF
+                </p>
                 <CldUploadWidget
                   uploadPreset="event_images"
                   onSuccess={(result: any) => {
-                    setImageUrl(result.info.secure_url)
+                    if (result?.info?.secure_url) {
+                      setImageUrl(result.info.secure_url)
+                      toast({
+                        title: 'Image uploaded',
+                        description: 'Your event image has been uploaded successfully.',
+                      })
+                    }
+                  }}
+                  onError={(error: any) => {
+                    console.error('Cloudinary upload error:', error)
+                    toast({
+                      title: 'Upload failed',
+                      description: error?.message || 'Failed to upload image. Please try again.',
+                      variant: 'destructive',
+                    })
+                  }}
+                  onQueuesEnd={(result: any, { widget }: any) => {
+                    // This fires when upload completes
+                    if (result?.info?.error) {
+                      toast({
+                        title: 'Upload failed',
+                        description: result.info.error.message || 'Failed to upload image.',
+                        variant: 'destructive',
+                      })
+                    }
+                  }}
+                  options={{
+                    maxFiles: 1, // Only 1 image per event
+                    maxFileSize: MAX_FILE_SIZE,
+                    resourceType: 'image',
+                    clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+                    sources: ['local', 'camera'], // Only allow local files and camera
+                    multiple: false,
+                    cropping: false, // Disable cropping to keep it simple
+                    showAdvancedOptions: false,
+                    showPoweredBy: false,
                   }}
                 >
                   {({ open }) => {
@@ -120,7 +175,19 @@ export function EventFormClient() {
                 </CldUploadWidget>
                 {imageUrl && (
                   <div className="mt-2">
-                    <img src={imageUrl} alt="Event" className="h-32 w-auto rounded" />
+                    <img src={imageUrl} alt="Event preview" className="h-32 w-auto rounded" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => {
+                        setImageUrl(null)
+                        setValue('imageUrl', null)
+                      }}
+                    >
+                      Remove Image
+                    </Button>
                   </div>
                 )}
               </div>
