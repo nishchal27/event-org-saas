@@ -9,11 +9,11 @@ import { motion } from 'framer-motion'
 
 export function CTA() {
   return (
-    <section className="relative overflow-hidden py-16 sm:py-24 lg:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-background dark:via-primary/15 py-16 sm:py-24 lg:py-32">
       {/* Animated Background */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 blur-3xl"
+          className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl dark:bg-primary/30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 360],

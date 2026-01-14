@@ -40,11 +40,11 @@ const coreFeatures = [
 
 export function Features() {
   return (
-    <section id="features" className="relative overflow-hidden py-16 sm:py-24 lg:py-32">
+    <section id="features" className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-background dark:via-primary/15 py-16 sm:py-24 lg:py-32">
       {/* Animated Background */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute right-0 top-1/4 h-96 w-96 rounded-full bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-transparent blur-3xl"
+          className="absolute right-0 top-1/4 h-96 w-96 rounded-full bg-primary/20 blur-3xl dark:bg-primary/30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 90, 0],
@@ -56,7 +56,7 @@ export function Features() {
           }}
         />
         <motion.div
-          className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent blur-3xl"
+          className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl dark:bg-pink-500/30"
           animate={{
             scale: [1, 1.3, 1],
             rotate: [0, -90, 0],

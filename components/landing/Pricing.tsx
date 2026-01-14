@@ -94,11 +94,11 @@ const cardVariants = {
 
 export function Pricing() {
   return (
-    <section id="pricing" className="relative overflow-hidden py-16 sm:py-24 lg:py-32">
+    <section id="pricing" className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-background dark:via-primary/15 py-16 sm:py-24 lg:py-32">
       {/* Animated Background */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute right-0 top-1/4 h-96 w-96 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-3xl"
+          className="absolute right-0 top-1/4 h-96 w-96 rounded-full bg-primary/20 blur-3xl dark:bg-primary/30"
           animate={{
             scale: [1, 1.3, 1],
             x: [0, 50, 0],
@@ -110,7 +110,7 @@ export function Pricing() {
           }}
         />
         <motion.div
-          className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-3xl"
+          className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl dark:bg-pink-500/30"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, -30, 0],

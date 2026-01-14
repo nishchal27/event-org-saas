@@ -3,65 +3,37 @@
 import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('dark')
   const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    const stored = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null
+    const stored = localStorage.getItem('theme') as 'light' | 'dark' | null
+    const root = document.documentElement
+    
     if (stored) {
-      setTheme(stored)
+      root.classList.add(stored)
+      setIsDark(stored === 'dark')
     } else {
-      // Check system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      setTheme(prefersDark ? 'dark' : 'light')
+      // Default to dark mode
+      root.classList.add('dark')
+      setIsDark(true)
+      localStorage.setItem('theme', 'dark')
     }
   }, [])
 
-  useEffect(() => {
-    if (!mounted) return
-
+  const toggleTheme = () => {
     const root = document.documentElement
+    const newTheme = isDark ? 'light' : 'dark'
     
-    // Remove existing theme classes
     root.classList.remove('light', 'dark')
-    
-    const updateTheme = () => {
-      if (theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        root.classList.add(prefersDark ? 'dark' : 'light')
-        setIsDark(prefersDark)
-      } else {
-        root.classList.add(theme)
-        setIsDark(theme === 'dark')
-      }
-    }
-    
-    updateTheme()
-    
-    if (theme === 'system') {
-      // Listen for system theme changes
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = (e: MediaQueryListEvent) => {
-        root.classList.remove('light', 'dark')
-        root.classList.add(e.matches ? 'dark' : 'light')
-        setIsDark(e.matches)
-      }
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
-    }
-
-    localStorage.setItem('theme', theme)
-  }, [theme, mounted])
+    root.classList.add(newTheme)
+    setIsDark(!isDark)
+    localStorage.setItem('theme', newTheme)
+  }
 
   if (!mounted) {
     return (
@@ -72,27 +44,39 @@ export function ThemeToggle() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
-          {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          <Sun className="mr-2 h-4 w-4" />
-          <span>Light</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          <Moon className="mr-2 h-4 w-4" />
-          <span>Dark</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          <span className="mr-2 h-4 w-4 text-center">💻</span>
-          <span>System</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      className="h-9 w-9 relative"
+      aria-label="Toggle theme"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {isDark ? (
+          <motion.div
+            key="moon"
+            initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
+            animate={{ rotate: 0, opacity: 1, scale: 1 }}
+            exit={{ rotate: 90, opacity: 0, scale: 0.5 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <Moon className="h-4 w-4" />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="sun"
+            initial={{ rotate: 90, opacity: 0, scale: 0.5 }}
+            animate={{ rotate: 0, opacity: 1, scale: 1 }}
+            exit={{ rotate: -90, opacity: 0, scale: 0.5 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <Sun className="h-4 w-4" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <span className="sr-only">Toggle theme</span>
+    </Button>
   )
 }

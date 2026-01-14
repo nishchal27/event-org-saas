@@ -94,11 +94,11 @@ const testimonialVariants = {
 
 export function Testimonials() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background py-16 sm:py-24 lg:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-background dark:via-primary/15 py-16 sm:py-24 lg:py-32">
       {/* Animated Background */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute -right-32 top-20 h-96 w-96 rounded-full bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-transparent blur-3xl"
+          className="absolute -right-32 top-20 h-96 w-96 rounded-full bg-primary/20 blur-3xl dark:bg-primary/30"
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 90, 0],
@@ -110,7 +110,7 @@ export function Testimonials() {
           }}
         />
         <motion.div
-          className="absolute -left-32 bottom-20 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-transparent blur-3xl"
+          className="absolute -left-32 bottom-20 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl dark:bg-pink-500/30"
           animate={{
             scale: [1, 1.3, 1],
             rotate: [0, -90, 0],

@@ -40,7 +40,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="relative py-16 sm:py-24 lg:py-32">
+    <section id="faq" className="relative bg-gradient-to-br from-background via-primary/5 to-background dark:via-primary/15 py-16 sm:py-24 lg:py-32">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="mx-auto max-w-2xl text-center">

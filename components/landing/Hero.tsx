@@ -55,11 +55,11 @@ export function Hero() {
   ]
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+    <section className="relative overflow-hidden bg-gradient-to-br from-background via-primary/10 to-background dark:via-primary/20">
       {/* Animated Background Effects */}
       <div className="absolute inset-0 -z-10">
         <motion.div
-          className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-purple-500/20 blur-3xl"
+          className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-primary/20 blur-3xl dark:bg-primary/30"
           animate={{
             scale: [1, 1.2, 1],
             x: [0, 50, 0],
@@ -72,7 +72,7 @@ export function Hero() {
           }}
         />
         <motion.div
-          className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl"
+          className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-pink-500/20 blur-3xl dark:bg-pink-500/30"
           animate={{
             scale: [1, 1.3, 1],
             x: [0, -40, 0],
@@ -96,13 +96,13 @@ export function Hero() {
             transition={{ duration: 0.5 }}
             className="mb-6 inline-flex items-center gap-2"
           >
-            <span className="text-sm font-medium text-purple-300">
+            <span className="text-sm font-medium text-primary dark:text-primary/90">
               Trusted by NGOs & Communities Since 2024
             </span>
             <motion.span
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-              className="text-red-400"
+              className="text-red-400 dark:text-red-500"
             >
               ❤️
             </motion.span>
@@ -113,11 +113,11 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl"
+            className="mb-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl"
           >
             <span className="block">Create Events.</span>
             <motion.span
-              className="block bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent"
+              className="block bg-gradient-to-r from-primary via-pink-500 to-primary bg-clip-text text-transparent"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -139,7 +139,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-gray-300 sm:text-xl"
+            className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
             Welcome to the simplest way to manage events and send WhatsApp notifications to your
             attendees. Whether it's your first event or your hundredth, every invitation is crafted
@@ -157,7 +157,7 @@ export function Hero() {
               <Button
                 size="lg"
                 asChild
-                className="group bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-base font-semibold text-white shadow-xl shadow-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/60"
+                className="group bg-gradient-to-r from-primary via-pink-600 to-primary text-base font-semibold text-white shadow-xl shadow-primary/50 hover:shadow-2xl hover:shadow-primary/60"
               >
                 <Link href="/sign-up">
                   Start Free Trial
@@ -170,7 +170,7 @@ export function Hero() {
                 size="lg"
                 variant="outline"
                 asChild
-                className="border-gray-700 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/20"
+                className="text-base font-semibold backdrop-blur-sm"
               >
                 <Link href="#how-it-works">See How It Works</Link>
               </Button>
@@ -182,7 +182,7 @@ export function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400"
+            className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground"
           >
             {[
               'No credit card required',
@@ -245,7 +245,7 @@ export function Hero() {
                     flex: '1 1 0',
                     minWidth: '0'
                   }}
-                  className={`group relative ${event.zIndex} ${event.translateY} overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-300 hover:shadow-purple-500/30 ${event.height}`}
+                  className={`group relative ${event.zIndex} ${event.translateY} overflow-hidden rounded-3xl bg-card shadow-2xl transition-all duration-300 hover:shadow-primary/30 ${event.height}`}
                 >
                   {/* Event Image */}
                   <div
@@ -293,7 +293,7 @@ export function Hero() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   whileHover={{ y: -8 }}
-                  className={`group relative flex-shrink-0 overflow-hidden rounded-3xl bg-white shadow-xl transition-all duration-300 hover:shadow-2xl ${event.height} w-[200px] sm:w-[240px]`}
+                  className={`group relative flex-shrink-0 overflow-hidden rounded-3xl bg-card shadow-xl transition-all duration-300 hover:shadow-2xl ${event.height} w-[200px] sm:w-[240px]`}
                 >
                   {/* Event Image */}
                   <div
