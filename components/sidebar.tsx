@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Calendar, Users, Settings, Home, CreditCard } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserButton } from '@clerk/nextjs'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -18,10 +19,10 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden w-64 border-r bg-white md:block">
+    <aside className="hidden w-64 border-r border-border bg-card md:block">
       <div className="flex h-full flex-col">
-        <div className="border-b p-4">
-          <h1 className="text-xl font-bold">EventOrg</h1>
+        <div className="border-b border-border p-4">
+          <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => {
@@ -35,7 +36,7 @@ export function Sidebar() {
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -44,7 +45,11 @@ export function Sidebar() {
             )
           })}
         </nav>
-        <div className="border-t p-4">
+        <div className="border-t border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Theme</span>
+            <ThemeToggle />
+          </div>
           <UserButton />
         </div>
       </div>

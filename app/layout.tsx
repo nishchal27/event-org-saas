@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import "./globals.css"
 import { Providers } from "./providers"
+import { ThemeScript } from "./theme-script"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,8 +29,9 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
+          <ThemeScript />
           <Providers>{children}</Providers>
         </body>
       </html>

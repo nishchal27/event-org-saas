@@ -8,5 +8,6 @@ export default async function Home() {
     redirect('/dashboard')
   }
 
-  redirect('/sign-in')
+  // Redirect unauthenticated users to landing page
+  redirect('/landing')
 }
