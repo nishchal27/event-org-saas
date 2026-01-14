@@ -11,12 +11,32 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ContactSelection } from '@/components/contact-selection'
 import { useToast } from '@/hooks/use-toast'
+import { PostsTabClient } from './posts-tab-client'
+import { Sparkles } from 'lucide-react'
 
 export function EventDetailClient({ eventId }: { eventId: string }) {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: event, isLoading, refetch } = trpc.event.getById.useQuery({ id: eventId })
-  const { data: contacts } = trpc.contact.getAll.useQuery()
+  const utils = trpc.useUtils()
+  const { data: event, isLoading } = trpc.event.getById.useQuery(
+    { id: eventId },
+    {
+      // Event data is fresh for 2 minutes (doesn't change often)
+      staleTime: 2 * 60 * 1000,
+    }
+  )
+  const { data: contacts } = trpc.contact.getAll.useQuery(undefined, {
+    // Contacts list is fresh for 1 minute
+    staleTime: 60 * 1000,
+  })
+  const { data: posts } = trpc.ai.getPostsByEvent.useQuery(
+    { eventId },
+    {
+      enabled: !!eventId,
+      // Posts are fresh for 1 minute
+      staleTime: 60 * 1000,
+    }
+  )
   const [selectedContacts, setSelectedContacts] = useState<string[]>([])
   const [showContactSelection, setShowContactSelection] = useState(false)
 
@@ -26,7 +46,8 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
         title: 'Success',
         description: 'WhatsApp invitations sent successfully!',
       })
-      refetch()
+      // Invalidate event query to refetch updated attendee data
+      utils.event.getById.invalidate({ id: eventId })
       setShowContactSelection(false)
     },
   })
@@ -117,6 +138,10 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
               <TabsList>
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="attendees">Attendees ({event.attendees.length})</TabsTrigger>
+                <TabsTrigger value="posts">
+                  <Sparkles className="mr-1 h-4 w-4" />
+                  Posts {posts && posts.length > 0 && `(${posts.length})`}
+                </TabsTrigger>
                 <TabsTrigger value="invite">Invite</TabsTrigger>
               </TabsList>
 
@@ -251,6 +276,10 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="posts" className="space-y-4">
+                <PostsTabClient eventId={eventId} />
               </TabsContent>
 
               <TabsContent value="invite">

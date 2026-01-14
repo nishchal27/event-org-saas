@@ -187,4 +187,38 @@ export const organizationRouter = router({
 
     return count > 0
   }),
+
+  // Update organization customization settings
+  updateCustomization: protectedProcedure
+    .input(
+      z.object({
+        logo: z.string().url().optional().nullable(),
+        accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+        backgroundColor: z.enum(['light', 'dark']).optional(),
+        fontStyle: z.enum(['default', 'modern', 'classic']).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const updateData: any = {}
+      if (input.logo !== undefined) updateData.logo = input.logo
+      if (input.accentColor !== undefined) updateData.accentColor = input.accentColor
+      if (input.backgroundColor !== undefined) updateData.backgroundColor = input.backgroundColor
+      if (input.fontStyle !== undefined) updateData.fontStyle = input.fontStyle
+
+      const updated = await ctx.prisma.organization.update({
+        where: { id: ctx.organization.id },
+        data: updateData,
+      })
+
+      return {
+        logo: updated.logo,
+        accentColor: updated.accentColor,
+        backgroundColor: updated.backgroundColor,
+        fontStyle: updated.fontStyle,
+      }
+    }),
 })

@@ -53,7 +53,8 @@ export function ContactsClient() {
       })
       reset()
       setIsDialogOpen(false)
-      refetch()
+      // Invalidate contacts list to refetch with new contact
+      utils.contact.getAll.invalidate()
     },
     onError: (error) => {
       toast({

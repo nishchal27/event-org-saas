@@ -1,8 +1,16 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
+import {
+  generateSocialMediaPost,
+  type Platform,
+  type Tone,
+  type TargetAudience,
+  type CallToAction,
+} from '@/lib/ai-engine'
 
 export const aiRouter = router({
+  // Legacy WhatsApp message generation (kept for backward compatibility)
   generateWhatsAppMessage: protectedProcedure
     .input(
       z.object({
@@ -15,31 +23,11 @@ export const aiRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
-      // Check AI usage limits
       const now = new Date()
-      const usage = await ctx.prisma.usage.findUnique({
-        where: {
-          organizationId_month_year: {
-            organizationId: ctx.organization.id,
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-          },
-        },
-      })
-
-      const subscription = await ctx.prisma.subscription.findUnique({
-        where: { organizationId: ctx.organization.id },
-      })
-
-      const planLimits = {
-        free: { ai: 5 },
-        monthly: { ai: 30 },
-        yearly: { ai: 200 },
-        enterprise: { ai: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.ai || 5
-      const currentCount = usage?.aiGenerations || 0
+      const { usage, subscription, limit, currentCount } = await checkAILimits(
+        ctx,
+        now
+      )
 
       if (currentCount >= limit) {
         throw new TRPCError({
@@ -48,7 +36,6 @@ export const aiRouter = router({
         })
       }
 
-      // Get event
       const event = await ctx.prisma.event.findFirst({
         where: {
           id: input.eventId,
@@ -60,33 +47,318 @@ export const aiRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND' })
       }
 
-      // Generate message using AI
       const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.publicSlug}`
-      const generatedMessage = await generateAIMessage(event, input.tone, eventUrl)
+      const result = await generateSocialMediaPost(
+        {
+          title: event.title,
+          description: event.description,
+          eventDate: event.eventDate,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          locationType: event.locationType,
+          imageUrl: event.imageUrl,
+          additionalNotes: event.additionalNotes,
+          publicSlug: event.publicSlug,
+        },
+        {
+          platform: 'whatsapp',
+          tone: input.tone,
+          eventUrl,
+        }
+      )
 
-      // Update usage
-      await ctx.prisma.usage.upsert({
+      await updateUsage(ctx, now, 1, result.tokensUsed || 0)
+
+      return { message: result.content }
+    }),
+
+  // Enhanced social media post generation with saving
+  generatePost: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        platform: z.enum(['instagram', 'facebook', 'twitter', 'linkedin', 'whatsapp']),
+        tone: z.enum(['friendly', 'formal', 'casual', 'professional', 'excited']).optional(),
+        targetAudience: z.enum(['general', 'youth', 'professionals', 'families']).optional(),
+        callToAction: z.enum(['register', 'learn-more', 'share', 'attend']).optional(),
+        customPrompt: z.string().optional(),
+        saveToDb: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const now = new Date()
+      const { limit, currentCount } = await checkAILimits(ctx, now)
+
+      if (currentCount >= limit) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: `You've reached your monthly AI generation limit (${limit}). Upgrade to continue.`,
+        })
+      }
+
+      const event = await ctx.prisma.event.findFirst({
         where: {
-          organizationId_month_year: {
-            organizationId: ctx.organization.id,
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-          },
-        },
-        update: {
-          aiGenerations: { increment: 1 },
-        },
-        create: {
+          id: input.eventId,
           organizationId: ctx.organization.id,
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
-          aiGenerations: 1,
         },
       })
 
-      return { message: generatedMessage }
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.publicSlug}`
+      const startTime = Date.now()
+
+      const result = await generateSocialMediaPost(
+        {
+          title: event.title,
+          description: event.description,
+          eventDate: event.eventDate,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          locationType: event.locationType,
+          imageUrl: event.imageUrl,
+          additionalNotes: event.additionalNotes,
+          publicSlug: event.publicSlug,
+        },
+        {
+          platform: input.platform,
+          tone: input.tone,
+          targetAudience: input.targetAudience,
+          callToAction: input.callToAction,
+          customPrompt: input.customPrompt,
+          eventUrl,
+        }
+      )
+
+      const generationTime = Date.now() - startTime
+
+      // Update usage metrics
+      await updateUsage(ctx, now, 1, result.tokensUsed || 0)
+
+      // Save to database if requested
+      let savedPost = null
+      if (input.saveToDb) {
+        savedPost = await ctx.prisma.socialMediaPost.create({
+          data: {
+            organizationId: ctx.organization.id,
+            eventId: input.eventId,
+            platform: input.platform,
+            content: result.content,
+            hashtags: result.hashtags,
+            tone: input.tone || null,
+            targetAudience: input.targetAudience || null,
+            callToAction: input.callToAction || null,
+            customPrompt: input.customPrompt || null,
+            tokensUsed: result.tokensUsed || null,
+            generationTime: generationTime || null,
+            status: 'draft',
+          },
+        })
+      }
+
+      return {
+        post: result.content,
+        hashtags: result.hashtags,
+        savedPost,
+        tokensUsed: result.tokensUsed,
+        generationTime,
+      }
     }),
 
+  // Get all posts for an event
+  getPostsByEvent: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      // Verify event belongs to organization
+      const event = await ctx.prisma.event.findFirst({
+        where: {
+          id: input.eventId,
+          organizationId: ctx.organization.id,
+        },
+      })
+
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      return ctx.prisma.socialMediaPost.findMany({
+        where: {
+          eventId: input.eventId,
+          organizationId: ctx.organization.id,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+    }),
+
+  // Get a single post
+  getPostById: protectedProcedure
+    .input(z.object({ postId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const post = await ctx.prisma.socialMediaPost.findFirst({
+        where: {
+          id: input.postId,
+          organizationId: ctx.organization.id,
+        },
+        include: {
+          event: {
+            select: {
+              title: true,
+              publicSlug: true,
+            },
+          },
+        },
+      })
+
+      if (!post) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      return post
+    }),
+
+  // Update a post
+  updatePost: protectedProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+        content: z.string().optional(),
+        hashtags: z.array(z.string()).optional(),
+        status: z.enum(['draft', 'published', 'archived']).optional(),
+        tone: z.enum(['friendly', 'formal', 'casual', 'professional', 'excited']).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const post = await ctx.prisma.socialMediaPost.findFirst({
+        where: {
+          id: input.postId,
+          organizationId: ctx.organization.id,
+        },
+      })
+
+      if (!post) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      return ctx.prisma.socialMediaPost.update({
+        where: { id: input.postId },
+        data: {
+          content: input.content,
+          hashtags: input.hashtags,
+          status: input.status,
+          tone: input.tone,
+        },
+      })
+    }),
+
+  // Delete a post
+  deletePost: protectedProcedure
+    .input(z.object({ postId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const post = await ctx.prisma.socialMediaPost.findFirst({
+        where: {
+          id: input.postId,
+          organizationId: ctx.organization.id,
+        },
+      })
+
+      if (!post) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      await ctx.prisma.socialMediaPost.delete({
+        where: { id: input.postId },
+      })
+
+      return { success: true }
+    }),
+
+  // Get AI usage stats for admin
+  getUsageStats: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.organization) {
+      throw new TRPCError({ code: 'UNAUTHORIZED' })
+    }
+
+    const now = new Date()
+    const usage = await ctx.prisma.usage.findUnique({
+      where: {
+        organizationId_month_year: {
+          organizationId: ctx.organization.id,
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+        },
+      },
+    })
+
+    const subscription = await ctx.prisma.subscription.findUnique({
+      where: { organizationId: ctx.organization.id },
+    })
+
+    const planLimits = {
+      free: { ai: 5 },
+      monthly: { ai: 30 },
+      yearly: { ai: 200 },
+      enterprise: { ai: 999999 },
+    }
+
+    const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.ai || 5
+    const currentCount = usage?.aiGenerations || 0
+    const tokensUsed = usage?.aiTokensUsed || 0
+    const postsGenerated = usage?.postsGenerated || 0
+
+    // Get platform breakdown
+    const platformStats = await ctx.prisma.socialMediaPost.groupBy({
+      by: ['platform'],
+      where: {
+        organizationId: ctx.organization.id,
+        createdAt: {
+          gte: new Date(now.getFullYear(), now.getMonth(), 1),
+        },
+      },
+      _count: {
+        platform: true,
+      },
+    })
+
+    return {
+      currentCount,
+      limit,
+      remaining: Math.max(0, limit - currentCount),
+      tokensUsed,
+      postsGenerated,
+      platformBreakdown: platformStats.map((stat) => ({
+        platform: stat.platform,
+        count: stat._count.platform,
+      })),
+    }
+  }),
+
+  // Legacy endpoint (kept for backward compatibility)
   generateSocialPost: protectedProcedure
     .input(
       z.object({
@@ -99,31 +371,8 @@ export const aiRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
-      // Check AI usage (same as above)
       const now = new Date()
-      const usage = await ctx.prisma.usage.findUnique({
-        where: {
-          organizationId_month_year: {
-            organizationId: ctx.organization.id,
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-          },
-        },
-      })
-
-      const subscription = await ctx.prisma.subscription.findUnique({
-        where: { organizationId: ctx.organization.id },
-      })
-
-      const planLimits = {
-        free: { ai: 5 },
-        monthly: { ai: 30 },
-        yearly: { ai: 200 },
-        enterprise: { ai: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.ai || 5
-      const currentCount = usage?.aiGenerations || 0
+      const { limit, currentCount } = await checkAILimits(ctx, now)
 
       if (currentCount >= limit) {
         throw new TRPCError({
@@ -144,117 +393,87 @@ export const aiRouter = router({
       }
 
       const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.publicSlug}`
-      const generatedPost = await generateSocialPost(event, input.platform, eventUrl)
+      const result = await generateSocialMediaPost(
+        {
+          title: event.title,
+          description: event.description,
+          eventDate: event.eventDate,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          location: event.location,
+          locationType: event.locationType,
+          imageUrl: event.imageUrl,
+          additionalNotes: event.additionalNotes,
+          publicSlug: event.publicSlug,
+        },
+        {
+          platform: input.platform,
+          eventUrl,
+        }
+      )
 
-      // Update usage
-      await ctx.prisma.usage.upsert({
-        where: {
-          organizationId_month_year: {
-            organizationId: ctx.organization.id,
-            month: now.getMonth() + 1,
-            year: now.getFullYear(),
-          },
-        },
-        update: {
-          aiGenerations: { increment: 1 },
-        },
-        create: {
-          organizationId: ctx.organization.id,
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
-          aiGenerations: 1,
-        },
-      })
+      await updateUsage(ctx, now, 1, result.tokensUsed || 0)
 
-      return { post: generatedPost }
+      return { post: result.content }
     }),
 })
 
-async function generateAIMessage(
-  event: any,
-  tone: string,
-  eventUrl: string
-): Promise<string> {
-  // TODO: Implement actual AI/LLM integration (OpenAI, Anthropic, etc.)
-  const apiKey = process.env.OPENAI_API_KEY
-
-  if (!apiKey) {
-    // Fallback to template-based generation
-    return `🎉 *${event.title}*\n\n📅 ${new Date(event.eventDate).toLocaleDateString('en-IN')}\n🕐 ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${eventUrl}`
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+// Helper function to check AI limits
+async function checkAILimits(ctx: any, now: Date) {
+  const usage = await ctx.prisma.usage.findUnique({
+    where: {
+      organizationId_month_year: {
+        organizationId: ctx.organization.id,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
       },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a helpful assistant that creates friendly WhatsApp invitation messages for events in India. Use emojis appropriately and keep the tone ${tone}.`,
-          },
-          {
-            role: 'user',
-            content: `Create a WhatsApp invitation message for this event:\nTitle: ${event.title}\nDate: ${new Date(event.eventDate).toLocaleDateString('en-IN')}\nTime: ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\nLocation: ${event.location}\nDescription: ${event.description}\nRegistration Link: ${eventUrl}`,
-          },
-        ],
-        max_tokens: 300,
-      }),
-    })
+    },
+  })
 
-    const data = await response.json()
-    return data.choices[0]?.message?.content || ''
-  } catch (error) {
-    console.error('AI generation error:', error)
-    // Fallback
-    return `🎉 *${event.title}*\n\n📅 ${new Date(event.eventDate).toLocaleDateString('en-IN')}\n🕐 ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${eventUrl}`
+  const subscription = await ctx.prisma.subscription.findUnique({
+    where: { organizationId: ctx.organization.id },
+  })
+
+  const planLimits = {
+    free: { ai: 5 },
+    monthly: { ai: 30 },
+    yearly: { ai: 200 },
+    enterprise: { ai: 999999 },
   }
+
+  const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.ai || 5
+  const currentCount = usage?.aiGenerations || 0
+
+  return { usage, subscription, limit, currentCount }
 }
 
-async function generateSocialPost(
-  event: any,
-  platform: string,
-  eventUrl: string
-): Promise<string> {
-  // Similar to above but tailored for social media
-  const apiKey = process.env.OPENAI_API_KEY
-
-  if (!apiKey) {
-    // Fallback
-    return `${event.title}\n\n📅 ${new Date(event.eventDate).toLocaleDateString('en-IN')}\n🕐 ${event.startTime}\n📍 ${event.location}\n\n${event.description}\n\nRegister: ${eventUrl}`
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+// Helper function to update usage metrics
+async function updateUsage(
+  ctx: any,
+  now: Date,
+  generations: number,
+  tokens: number
+) {
+  await ctx.prisma.usage.upsert({
+    where: {
+      organizationId_month_year: {
+        organizationId: ctx.organization.id,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
       },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a social media content creator. Create a ${platform} post for an event. Use appropriate hashtags and emojis.`,
-          },
-          {
-            role: 'user',
-            content: `Create a ${platform} post for:\n${event.title}\n${new Date(event.eventDate).toLocaleDateString('en-IN')}\n${event.startTime}\n${event.location}\n${event.description}`,
-          },
-        ],
-        max_tokens: 300,
-      }),
-    })
-
-    const data = await response.json()
-    return data.choices[0]?.message?.content || ''
-  } catch (error) {
-    console.error('AI generation error:', error)
-    return `${event.title}\n\n📅 ${new Date(event.eventDate).toLocaleDateString('en-IN')}\n🕐 ${event.startTime}\n📍 ${event.location}\n\n${event.description}\n\nRegister: ${eventUrl}`
-  }
+    },
+    update: {
+      aiGenerations: { increment: generations },
+      aiTokensUsed: { increment: tokens },
+      postsGenerated: { increment: generations },
+    },
+    create: {
+      organizationId: ctx.organization.id,
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      aiGenerations: generations,
+      aiTokensUsed: tokens,
+      postsGenerated: generations,
+    },
+  })
 }

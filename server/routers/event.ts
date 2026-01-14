@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { router, protectedProcedure } from '@/lib/trpc'
+import { router, protectedProcedure, publicProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { generateSlug } from '@/lib/utils'
 
@@ -167,12 +167,23 @@ export const eventRouter = router({
       return event
     }),
 
-  getBySlug: protectedProcedure
+  getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
       const event = await ctx.prisma.event.findUnique({
         where: {
           publicSlug: input.slug,
+        },
+        include: {
+          organization: {
+            select: {
+              name: true,
+              logo: true,
+              accentColor: true,
+              backgroundColor: true,
+              fontStyle: true,
+            },
+          },
         },
       })
 

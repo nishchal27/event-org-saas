@@ -9,6 +9,7 @@ import { formatDate, formatTime } from '@/lib/utils'
 import { Calendar, MapPin, Clock, CheckCircle, XCircle, HelpCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 export function PublicEventClient({ slug }: { slug: string }) {
   const { toast } = useToast()
@@ -76,11 +77,84 @@ export function PublicEventClient({ slug }: { slug: string }) {
     )
   }
 
+  // Get organization customization
+  const org = event.organization
+  const themeColor = org?.accentColor || '#3b82f6'
+  const backgroundColor = org?.backgroundColor || 'light'
+  const fontStyle = org?.fontStyle || 'default'
+  const orgLogo = org?.logo
+  const orgName = org?.name || 'Organization'
+
+  // Font style classes
+  const fontClasses = {
+    default: 'font-sans',
+    modern: 'font-sans',
+    classic: 'font-serif',
+  }
+
+  // Background gradient based on theme color and background setting
+  const getBackgroundGradient = () => {
+    if (backgroundColor === 'dark') {
+      // Dark background with theme color accent
+      return `linear-gradient(135deg, ${themeColor}15 0%, ${themeColor}05 100%)`
+    }
+    // Light background with theme color accent
+    const rgb = hexToRgb(themeColor)
+    if (rgb) {
+      return `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.1) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05) 100%)`
+    }
+    return 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+  }
+
+  // Helper to convert hex to RGB
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div
+      className={cn(
+        'min-h-screen',
+        backgroundColor === 'dark' ? 'bg-gray-900' : 'bg-gray-50',
+        fontClasses[fontStyle as keyof typeof fontClasses]
+      )}
+      style={{
+        background: backgroundColor === 'light' ? getBackgroundGradient() : undefined,
+      }}
+    >
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-2xl">
-          <Card className="overflow-hidden">
+          {/* Organization Logo/Name Header */}
+          <div className="mb-6 flex items-center justify-center">
+            {orgLogo ? (
+              <img
+                src={orgLogo}
+                alt={orgName}
+                className="h-16 w-auto object-contain"
+              />
+            ) : (
+              <h2
+                className="text-2xl font-bold"
+                style={{ color: themeColor }}
+              >
+                {orgName}
+              </h2>
+            )}
+          </div>
+
+          <Card
+            className={cn(
+              'overflow-hidden',
+              backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'
+            )}
+          >
             {event.imageUrl && (
               <div className="relative h-64 w-full">
                 <img
@@ -92,14 +166,38 @@ export function PublicEventClient({ slug }: { slug: string }) {
             )}
 
             <CardContent className="p-6 md:p-8">
-              <h1 className="mb-4 text-3xl font-bold">{event.title}</h1>
+              <h1
+                className={cn(
+                  'mb-4 text-3xl font-bold',
+                  backgroundColor === 'dark' ? 'text-white' : 'text-gray-900'
+                )}
+              >
+                {event.title}
+              </h1>
 
               <div className="mb-6 space-y-3">
                 <div className="flex items-start gap-3">
-                  <Calendar className="mt-1 h-5 w-5 text-gray-400" />
+                  <Calendar
+                    className={cn(
+                      'mt-1 h-5 w-5',
+                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-400'
+                    )}
+                  />
                   <div>
-                    <p className="font-medium">Date & Time</p>
-                    <p className="text-sm text-gray-600">
+                    <p
+                      className={cn(
+                        'font-medium',
+                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      )}
+                    >
+                      Date & Time
+                    </p>
+                    <p
+                      className={cn(
+                        'text-sm',
+                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      )}
+                    >
                       {formatDate(event.eventDate)} • {formatTime(event.startTime)}
                       {event.endTime && ` - ${formatTime(event.endTime)}`}
                     </p>
@@ -107,24 +205,67 @@ export function PublicEventClient({ slug }: { slug: string }) {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <MapPin className="mt-1 h-5 w-5 text-gray-400" />
+                  <MapPin
+                    className={cn(
+                      'mt-1 h-5 w-5',
+                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-400'
+                    )}
+                  />
                   <div>
-                    <p className="font-medium">Location</p>
-                    <p className="text-sm text-gray-600">{event.location}</p>
+                    <p
+                      className={cn(
+                        'font-medium',
+                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      )}
+                    >
+                      Location
+                    </p>
+                    <p
+                      className={cn(
+                        'text-sm',
+                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      )}
+                    >
+                      {event.location}
+                    </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="font-medium">Description</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                  <p
+                    className={cn(
+                      'font-medium',
+                      backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                    )}
+                  >
+                    Description
+                  </p>
+                  <p
+                    className={cn(
+                      'mt-1 whitespace-pre-wrap text-sm',
+                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    )}
+                  >
                     {event.description}
                   </p>
                 </div>
 
                 {event.additionalNotes && (
                   <div>
-                    <p className="font-medium">Additional Notes</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                    <p
+                      className={cn(
+                        'font-medium',
+                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      )}
+                    >
+                      Additional Notes
+                    </p>
+                    <p
+                      className={cn(
+                        'mt-1 whitespace-pre-wrap text-sm',
+                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      )}
+                    >
                       {event.additionalNotes}
                     </p>
                   </div>
@@ -132,18 +273,51 @@ export function PublicEventClient({ slug }: { slug: string }) {
 
                 {(event.customField1Label || event.customField2Label) && (
                   <div>
-                    <p className="font-medium">Additional Information</p>
+                    <p
+                      className={cn(
+                        'font-medium',
+                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      )}
+                    >
+                      Additional Information
+                    </p>
                     <div className="mt-2 space-y-2">
                       {event.customField1Label && (
                         <div className="text-sm">
-                          <span className="font-medium">{event.customField1Label}:</span>{' '}
-                          <span className="text-gray-600">{event.customField1Value}</span>
+                          <span
+                            className={cn(
+                              'font-medium',
+                              backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                            )}
+                          >
+                            {event.customField1Label}:
+                          </span>{' '}
+                          <span
+                            className={cn(
+                              backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            )}
+                          >
+                            {event.customField1Value}
+                          </span>
                         </div>
                       )}
                       {event.customField2Label && (
                         <div className="text-sm">
-                          <span className="font-medium">{event.customField2Label}:</span>{' '}
-                          <span className="text-gray-600">{event.customField2Value}</span>
+                          <span
+                            className={cn(
+                              'font-medium',
+                              backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                            )}
+                          >
+                            {event.customField2Label}:
+                          </span>{' '}
+                          <span
+                            className={cn(
+                              backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            )}
+                          >
+                            {event.customField2Value}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -154,50 +328,90 @@ export function PublicEventClient({ slug }: { slug: string }) {
               {!submitted ? (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Your Name *</Label>
+                    <Label
+                      htmlFor="name"
+                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                    >
+                      Your Name *
+                    </Label>
                     <Input
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter your name"
-                      className="mt-1"
+                      className={cn(
+                        'mt-1',
+                        backgroundColor === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
+                          : ''
+                      )}
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label
+                      htmlFor="phone"
+                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                    >
+                      Phone Number *
+                    </Label>
                     <Input
                       id="phone"
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Enter your phone number"
-                      className="mt-1"
+                      className={cn(
+                        'mt-1',
+                        backgroundColor === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
+                          : ''
+                      )}
                       required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="email">Email (Optional)</Label>
+                    <Label
+                      htmlFor="email"
+                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                    >
+                      Email (Optional)
+                    </Label>
                     <Input
                       id="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className="mt-1"
+                      className={cn(
+                        'mt-1',
+                        backgroundColor === 'dark'
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
+                          : ''
+                      )}
                     />
                   </div>
 
                   <div>
-                    <Label>Will you be attending? *</Label>
+                    <Label className={backgroundColor === 'dark' ? 'text-gray-200' : ''}>
+                      Will you be attending? *
+                    </Label>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <Button
                         type="button"
                         variant={status === 'confirmed' ? 'default' : 'outline'}
                         onClick={() => setStatus('confirmed')}
                         className="w-full"
+                        style={
+                          status === 'confirmed'
+                            ? {
+                                backgroundColor: themeColor,
+                                borderColor: themeColor,
+                              }
+                            : {}
+                        }
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Yes
@@ -216,6 +430,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                         variant={status === 'maybe' ? 'default' : 'outline'}
                         onClick={() => setStatus('maybe')}
                         className="w-full"
+                        style={
+                          status === 'maybe'
+                            ? {
+                                backgroundColor: themeColor,
+                                borderColor: themeColor,
+                              }
+                            : {}
+                        }
                       >
                         <HelpCircle className="mr-2 h-4 w-4" />
                         Maybe
@@ -223,15 +445,45 @@ export function PublicEventClient({ slug }: { slug: string }) {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={!status}>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!status || registerMutation.isLoading}
+                    style={{
+                      backgroundColor: themeColor,
+                      borderColor: themeColor,
+                    }}
+                  >
                     Confirm Attendance
                   </Button>
                 </form>
               ) : (
-                <div className="rounded-lg bg-green-50 p-6 text-center">
-                  <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
-                  <h3 className="mt-4 text-lg font-semibold">Thank you for confirming!</h3>
-                  <p className="mt-2 text-sm text-gray-600">
+                <div
+                  className="rounded-lg p-6 text-center"
+                  style={{
+                    backgroundColor: `${themeColor}15`,
+                    borderColor: `${themeColor}30`,
+                    borderWidth: '1px',
+                  }}
+                >
+                  <CheckCircle
+                    className="mx-auto h-12 w-12"
+                    style={{ color: themeColor }}
+                  />
+                  <h3
+                    className={cn(
+                      'mt-4 text-lg font-semibold',
+                      backgroundColor === 'dark' ? 'text-white' : 'text-gray-900'
+                    )}
+                  >
+                    Thank you for confirming!
+                  </h3>
+                  <p
+                    className={cn(
+                      'mt-2 text-sm',
+                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    )}
+                  >
                     We look forward to seeing you at the event.
                   </p>
                 </div>

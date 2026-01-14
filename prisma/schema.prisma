@@ -42,6 +42,7 @@ model Organization {
   events       Event[]
   contacts     Contact[]
   usage        Usage[]
+  socialPosts  SocialMediaPost[]
 
   @@map("organizations")
 }
@@ -86,12 +87,14 @@ model Usage {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  month         Int // 1-12
-  year          Int
-  eventsCreated Int @default(0)
-  contactsCount Int @default(0)
-  whatsappSent  Int @default(0)
-  aiGenerations Int @default(0)
+  month          Int // 1-12
+  year           Int
+  eventsCreated  Int @default(0)
+  contactsCount  Int @default(0)
+  whatsappSent   Int @default(0)
+  aiGenerations  Int @default(0)
+  aiTokensUsed   Int @default(0) // Track total tokens used for AI
+  postsGenerated Int @default(0) // Track number of posts generated
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -132,6 +135,7 @@ model Event {
 
   attendees        Attendee[]
   selectedContacts EventContact[]
+  socialPosts      SocialMediaPost[]
 
   @@map("events")
 }
@@ -191,4 +195,35 @@ model Attendee {
 
   @@unique([eventId, phone], name: "eventId_phone")
   @@map("attendees")
+}
+
+model SocialMediaPost {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  eventId        String
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  platform String // "instagram" | "facebook" | "twitter" | "linkedin" | "whatsapp"
+  content  String   @db.Text
+  hashtags String[] // Array of hashtags
+  tone     String? // "friendly" | "formal" | "casual" | "professional" | "excited"
+  status   String   @default("draft") // "draft" | "published" | "archived"
+
+  // Optional metadata for better generation
+  targetAudience String? // "general" | "youth" | "professionals" | "families"
+  callToAction   String? // "register" | "learn-more" | "share" | "attend"
+  customPrompt   String? @db.Text // User-provided additional context
+
+  // Metrics
+  tokensUsed     Int? // Track AI token usage
+  generationTime Int? // Time taken in milliseconds
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([organizationId])
+  @@index([platform])
+  @@map("social_media_posts")
 }

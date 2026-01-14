@@ -16,15 +16,21 @@ import { useRouter } from 'next/navigation'
 
 export function EventsClient() {
   const router = useRouter()
-  const { data: events, isLoading, refetch } = trpc.event.getAll.useQuery()
+  const utils = trpc.useUtils()
+  const { data: events, isLoading } = trpc.event.getAll.useQuery(undefined, {
+    // Events list is fresh for 1 minute
+    staleTime: 60 * 1000,
+  })
   const duplicateMutation = trpc.event.duplicate.useMutation({
     onSuccess: () => {
-      refetch()
+      // Invalidate events list to refetch with new duplicated event
+      utils.event.getAll.invalidate()
     },
   })
   const deleteMutation = trpc.event.delete.useMutation({
     onSuccess: () => {
-      refetch()
+      // Invalidate events list to remove deleted event
+      utils.event.getAll.invalidate()
     },
   })
 

@@ -8,8 +8,14 @@ import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
 export function DashboardClient() {
-  const { data: events, isLoading } = trpc.event.getAll.useQuery()
-  const { data: usage } = trpc.subscription.getUsage.useQuery()
+  const { data: events, isLoading } = trpc.event.getAll.useQuery(undefined, {
+    // Events list is fresh for 1 minute
+    staleTime: 60 * 1000,
+  })
+  const { data: usage } = trpc.subscription.getUsage.useQuery(undefined, {
+    // Usage stats are fresh for 2 minutes (they don't change frequently)
+    staleTime: 2 * 60 * 1000,
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
