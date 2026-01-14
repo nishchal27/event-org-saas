@@ -85,7 +85,7 @@ const cardVariants = {
     y: 0,
     scale: 1,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 100,
       damping: 15,
     },
@@ -177,7 +177,7 @@ export function Pricing() {
                     className="absolute -top-4 left-1/2 -translate-x-1/2"
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    transition={{ delay: index * 0.15 + 0.3, type: 'spring' }}
+                    transition={{ delay: index * 0.15 + 0.3, type: 'spring' as const }}
                   >
                     <span className="rounded-full bg-gradient-to-r from-primary via-purple-500 to-pink-500 px-4 py-1 text-sm font-semibold text-white shadow-lg">
                       Most Popular
@@ -193,7 +193,7 @@ export function Pricing() {
                       className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ delay: index * 0.15 + 0.5, type: 'spring' }}
+                      transition={{ delay: index * 0.15 + 0.5, type: 'spring' as const }}
                     >
                       {plan.price}
                     </motion.span>

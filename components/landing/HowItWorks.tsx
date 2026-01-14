@@ -52,7 +52,7 @@ const stepVariants = {
     y: 0,
     scale: 1,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 100,
       damping: 15,
     },
@@ -127,7 +127,6 @@ export function HowItWorks() {
                   <motion.div
                     className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${step.gradient} text-2xl font-bold text-white shadow-lg`}
                     whileHover={{ scale: 1.1, rotate: [0, -10, 10, -10, 0] }}
-                    transition={{ duration: 0.5 }}
                     animate={{
                       boxShadow: [
                         '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -136,9 +135,14 @@ export function HowItWorks() {
                       ],
                     }}
                     transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
+                      boxShadow: {
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      },
+                      default: {
+                        duration: 0.5,
+                      },
                     }}
                   >
                     {step.number}

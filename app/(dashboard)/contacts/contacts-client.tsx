@@ -34,6 +34,7 @@ export function ContactsClient() {
   const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const utils = trpc.useUtils()
   const { data: contacts, isLoading, refetch } = trpc.contact.getAll.useQuery()
 
   const {

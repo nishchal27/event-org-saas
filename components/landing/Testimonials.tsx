@@ -71,7 +71,7 @@ const statVariants = {
     scale: 1,
     y: 0,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 100,
       damping: 15,
     },
@@ -85,7 +85,7 @@ const testimonialVariants = {
     y: 0,
     scale: 1,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 100,
       damping: 15,
     },
@@ -201,7 +201,7 @@ export function Testimonials() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{
                           delay: index * 0.1 + i * 0.05,
-                          type: 'spring',
+                          type: 'spring' as const,
                         }}
                         whileHover={{ scale: 1.3, rotate: 15 }}
                       >

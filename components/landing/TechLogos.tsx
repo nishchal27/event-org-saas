@@ -43,7 +43,7 @@ export function TechLogos({ variant = 'default', showLabels = false }: TechLogos
       y: 0,
       scale: 1,
       transition: {
-        type: 'spring',
+        type: 'spring' as const,
         stiffness: 100,
         damping: 10,
       },

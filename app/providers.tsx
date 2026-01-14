@@ -37,8 +37,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       links: [
         httpBatchLink({
           url: '/api/trpc',
-          // Batch requests within 10ms window
-          maxBatchSize: 10,
         }),
       ],
     })
