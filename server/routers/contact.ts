@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
+import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 
 export const contactRouter = router({
   create: protectedProcedure
@@ -19,29 +20,24 @@ export const contactRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
-      // Check contact limit
-      const now = new Date()
+      // Check contact soft cap (internal abuse protection, not user-facing)
       const subscription = await ctx.prisma.subscription.findUnique({
         where: { organizationId: ctx.organization.id },
       })
 
-      const planLimits = {
-        free: { contacts: 100 },
-        monthly: { contacts: 300 },
-        yearly: { contacts: 1000 },
-        enterprise: { contacts: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.contacts || 100
+      const plan = (subscription?.plan || 'free') as PlanType
+      const limits = getPlanLimits(plan)
+      const softCap = limits.contacts // Internal soft cap (10k default)
 
       const contactCount = await ctx.prisma.contact.count({
         where: { organizationId: ctx.organization.id },
       })
 
-      if (contactCount >= limit) {
+      // Only enforce soft cap if approaching limit (abuse protection)
+      if (contactCount >= softCap) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: `You've reached your contact limit (${limit}). Upgrade to add more contacts.`,
+          message: 'Contact limit reached. Please contact support if you need to add more contacts.',
         })
       }
 
@@ -129,23 +125,18 @@ export const contactRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const planLimits = {
-        free: { contacts: 100 },
-        monthly: { contacts: 300 },
-        yearly: { contacts: 1000 },
-        enterprise: { contacts: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.contacts || 100
+      const plan = (subscription?.plan || 'free') as PlanType
+      const limits = getPlanLimits(plan)
+      const softCap = limits.contacts // Internal soft cap
 
       const contactCount = await ctx.prisma.contact.count({
         where: { organizationId: ctx.organization.id },
       })
 
-      if (contactCount + input.contacts.length > limit) {
+      if (contactCount + input.contacts.length > softCap) {
         throw new TRPCError({
           code: 'FORBIDDEN',
-          message: `Adding these contacts would exceed your limit (${limit}).`,
+          message: `Adding these contacts would exceed the limit. Please contact support if you need to add more contacts.`,
         })
       }
 

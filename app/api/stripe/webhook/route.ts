@@ -35,6 +35,23 @@ export async function POST(request: NextRequest) {
           })
 
           if (organization) {
+            // Get subscription details from Stripe for accurate period dates
+            let periodStart = new Date(session.created * 1000)
+            let periodEnd = new Date((session.created + 2592000) * 1000) // Default 30 days
+
+            if (session.subscription) {
+              try {
+                const stripeSubscription = await stripe.subscriptions.retrieve(
+                  session.subscription as string
+                )
+                periodStart = new Date(stripeSubscription.current_period_start * 1000)
+                periodEnd = new Date(stripeSubscription.current_period_end * 1000)
+              } catch (error) {
+                console.error('Error fetching subscription from Stripe:', error)
+                // Use defaults if fetch fails
+              }
+            }
+
             await prisma.subscription.upsert({
               where: { organizationId: organization.id },
               update: {
@@ -42,8 +59,8 @@ export async function POST(request: NextRequest) {
                 status: 'active',
                 stripeCustomerId: session.customer as string,
                 stripeSubscriptionId: session.subscription as string,
-                currentPeriodStart: new Date(session.created * 1000),
-                currentPeriodEnd: new Date((session.created + 2592000) * 1000), // 30 days
+                currentPeriodStart: periodStart,
+                currentPeriodEnd: periodEnd,
               },
               create: {
                 organizationId: organization.id,
@@ -51,8 +68,8 @@ export async function POST(request: NextRequest) {
                 status: 'active',
                 stripeCustomerId: session.customer as string,
                 stripeSubscriptionId: session.subscription as string,
-                currentPeriodStart: new Date(session.created * 1000),
-                currentPeriodEnd: new Date((session.created + 2592000) * 1000),
+                currentPeriodStart: periodStart,
+                currentPeriodEnd: periodEnd,
               },
             })
           }
@@ -60,14 +77,41 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
+      case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        // Update subscription status in database
+        // Get subscription item to determine plan
+        const subscriptionItem = subscription.items.data[0]
+        const priceId = subscriptionItem?.price.id
+
+        // Map Stripe price IDs to plan names
+        const priceIdToPlan: Record<string, string> = {
+          [process.env.STRIPE_PRICE_ID_MONTHLY || '']: 'monthly',
+          [process.env.STRIPE_PRICE_ID_MONTHLY_PRO || '']: 'monthly_pro',
+        }
+
+        const plan = priceIdToPlan[priceId] || 'monthly'
+
+        // Update subscription in database
         await prisma.subscription.updateMany({
           where: { stripeSubscriptionId: subscription.id },
           data: {
+            plan,
             status: subscription.status === 'active' ? 'active' : 'canceled',
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          },
+        })
+        break
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription
+        // Downgrade to free plan when subscription is canceled
+        await prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: subscription.id },
+          data: {
+            status: 'canceled',
+            plan: 'free', // Downgrade to free
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
           },
         })

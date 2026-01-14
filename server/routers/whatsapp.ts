@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
+import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 
 export const whatsappRouter = router({
   sendInvite: protectedProcedure
@@ -32,14 +33,9 @@ export const whatsappRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const planLimits = {
-        free: { whatsapp: 50 },
-        monthly: { whatsapp: 500 },
-        yearly: { whatsapp: 3000 },
-        enterprise: { whatsapp: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.whatsapp || 50
+      const plan = (subscription?.plan || 'free') as PlanType
+      const limits = getPlanLimits(plan)
+      const limit = limits.whatsapp
       const currentCount = usage?.whatsappSent || 0
 
       if (currentCount + input.contactIds.length > limit) {

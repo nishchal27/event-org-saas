@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure, publicProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { generateSlug } from '@/lib/utils'
+import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 
 const eventSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -44,14 +45,9 @@ export const eventRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const planLimits = {
-        free: { events: 2 },
-        monthly: { events: 10 },
-        yearly: { events: 30 },
-        enterprise: { events: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.events || 2
+      const plan = (subscription?.plan || 'free') as PlanType
+      const limits = getPlanLimits(plan)
+      const limit = limits.events
       const currentCount = usage?.eventsCreated || 0
 
       if (currentCount >= limit) {
@@ -260,14 +256,9 @@ export const eventRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const planLimits = {
-        free: { events: 2 },
-        monthly: { events: 10 },
-        yearly: { events: 30 },
-        enterprise: { events: 999999 },
-      }
-
-      const limit = planLimits[subscription?.plan as keyof typeof planLimits]?.events || 2
+      const plan = (subscription?.plan || 'free') as PlanType
+      const limits = getPlanLimits(plan)
+      const limit = limits.events
       const currentCount = usage?.eventsCreated || 0
 
       if (currentCount >= limit) {

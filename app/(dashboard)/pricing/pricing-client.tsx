@@ -13,10 +13,10 @@ const plans = [
     period: '',
     description: 'Perfect for trying out EventOrg',
     features: [
-      'Up to 2 events per month',
-      'Up to 100 contacts',
-      '50 WhatsApp messages/month',
-      '5 AI generations/month',
+      '2 events per month',
+      '60 WhatsApp messages/month',
+      '10 AI generations/month',
+      'Higher contact limit',
       'Event page & registration',
       'Event preview',
     ],
@@ -26,15 +26,18 @@ const plans = [
   },
   {
     name: 'Monthly',
-    price: '₹199',
+    price: '₹249',
     period: '/month',
-    description: 'For small organizations',
+    description: 'For small NGOs & communities',
     features: [
-      'Up to 10 events per month',
-      'Up to 300 contacts',
-      '500 WhatsApp messages/month',
-      '30 AI generations/month',
+      '15 events per month',
+      '300 WhatsApp messages/month',
+      '60 AI generations/month',
+      'Higher contact limit',
+      'WhatsApp automation',
+      'AI content generation',
       'CSV export',
+      'Reminder messages (1 per event)',
       'Email support',
     ],
     cta: 'Upgrade to Monthly',
@@ -42,22 +45,22 @@ const plans = [
     planId: 'monthly',
   },
   {
-    name: 'Yearly',
-    price: '₹1,999',
-    period: '/year',
-    description: 'Best value for growing organizations',
+    name: 'Monthly Pro',
+    price: '₹499',
+    period: '/month',
+    description: 'For serious & growing organizations',
     features: [
-      'Up to 30 events per month',
-      'Up to 1,000 contacts',
-      '3,000 WhatsApp messages/month',
+      'Unlimited events',
+      '1,000 WhatsApp messages/month',
       '200 AI generations/month',
-      'Reminder messages',
+      'Higher contact limit',
+      'Multiple reminders',
       'Priority support',
-      'Save ₹389/year',
+      'Early access to new features',
     ],
-    cta: 'Upgrade to Yearly',
+    cta: 'Upgrade to Monthly Pro',
     popular: true,
-    planId: 'yearly',
+    planId: 'monthly_pro',
   },
 ]
 
@@ -76,24 +79,29 @@ export function PricingClient() {
         <div className="mb-12 text-center">
           <h2 className="text-4xl font-bold">Choose Your Plan</h2>
           <p className="mt-4 text-lg text-gray-600">
-            Start free, upgrade when you need more
+            Simple, transparent pricing. Pay only for what you use.
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            All plans include higher contact limits. Limits apply to WhatsApp messages and AI generations only.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           {plans.map((plan) => {
             const isCurrentPlan = subscription?.plan === plan.planId
-            const isUpgrade = subscription?.plan === 'free' && plan.planId !== 'free'
+            const isUpgrade =
+              subscription?.plan === 'free' && plan.planId !== 'free' ||
+              subscription?.plan === 'monthly' && plan.planId === 'monthly_pro'
 
             return (
               <Card
                 key={plan.planId}
-                className={`relative ${plan.popular ? 'border-primary shadow-lg' : ''}`}
+                className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="rounded-full bg-primary px-4 py-1 text-sm font-semibold text-white">
-                      Best Value
+                      Most Popular
                     </span>
                   </div>
                 )}
@@ -117,6 +125,10 @@ export function PricingClient() {
                   {isCurrentPlan ? (
                     <Button disabled className="w-full">
                       {plan.cta}
+                    </Button>
+                  ) : plan.planId === 'free' ? (
+                    <Button disabled variant="outline" className="w-full">
+                      Current Plan
                     </Button>
                   ) : (
                     <Link href={`/api/stripe/checkout?plan=${plan.planId}`} className="block">

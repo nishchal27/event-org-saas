@@ -41,7 +41,7 @@ export function DashboardClient() {
               <CardHeader className="pb-2">
                 <CardDescription>Events This Month</CardDescription>
                 <CardTitle className="text-2xl">
-                  {usage.usage.eventsCreated} / {usage.limits.events}
+                  {usage.usage.eventsCreated} / {usage.limits.events === 999999 ? '∞' : usage.limits.events}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -49,8 +49,9 @@ export function DashboardClient() {
               <CardHeader className="pb-2">
                 <CardDescription>Contacts</CardDescription>
                 <CardTitle className="text-2xl">
-                  {usage.usage.contactsCount} / {usage.limits.contacts}
+                  {usage.usage.contactsCount}
                 </CardTitle>
+                <p className="text-xs text-gray-500 mt-1">Higher limit</p>
               </CardHeader>
             </Card>
             <Card>

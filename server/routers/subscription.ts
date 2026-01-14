@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
+import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 
 export const subscriptionRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
@@ -33,34 +34,8 @@ export const subscriptionRouter = router({
       where: { organizationId: ctx.organization.id },
     })
 
-    const planLimits = {
-      free: {
-        events: 2,
-        contacts: 100,
-        whatsapp: 50,
-        ai: 5,
-      },
-      monthly: {
-        events: 10,
-        contacts: 300,
-        whatsapp: 500,
-        ai: 30,
-      },
-      yearly: {
-        events: 30,
-        contacts: 1000,
-        whatsapp: 3000,
-        ai: 200,
-      },
-      enterprise: {
-        events: 999999,
-        contacts: 999999,
-        whatsapp: 999999,
-        ai: 999999,
-      },
-    }
-
-    const limits = planLimits[subscription?.plan as keyof typeof planLimits] || planLimits.free
+    const plan = (subscription?.plan || 'free') as PlanType
+    const limits = getPlanLimits(plan)
 
     return {
       usage: usage || {
@@ -70,7 +45,7 @@ export const subscriptionRouter = router({
         aiGenerations: 0,
       },
       limits,
-      plan: subscription?.plan || 'free',
+      plan,
     }
   }),
 })

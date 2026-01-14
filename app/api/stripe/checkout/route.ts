@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const plan = searchParams.get('plan')
 
-  if (!plan || !['monthly', 'yearly'].includes(plan)) {
+  if (!plan || !['monthly', 'monthly_pro'].includes(plan)) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
   }
 
   const priceIds = {
     monthly: process.env.STRIPE_PRICE_ID_MONTHLY!,
-    yearly: process.env.STRIPE_PRICE_ID_YEARLY!,
+    monthly_pro: process.env.STRIPE_PRICE_ID_MONTHLY_PRO!,
   }
 
   try {

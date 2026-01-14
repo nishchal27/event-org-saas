@@ -69,7 +69,7 @@ model Subscription {
   organizationId String       @unique
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  plan                 String // "free" | "monthly" | "yearly" | "enterprise"
+  plan                 String // "free" | "monthly" | "monthly_pro" | "enterprise"
   status               String // "active" | "canceled" | "past_due"
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?   @unique
