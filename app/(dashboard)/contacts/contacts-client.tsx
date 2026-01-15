@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, Mail, Phone, MapPin } from 'lucide-react'
-import { useState } from 'react'
+import { Plus, Search, Mail, Phone, MapPin, Download } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -36,6 +36,33 @@ export function ContactsClient() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const utils = trpc.useUtils()
   const { data: contacts, isLoading, refetch } = trpc.contact.getAll.useQuery()
+
+  const handleExport = async () => {
+    try {
+      const result = await utils.export.exportContacts.fetch({ format: 'csv' })
+      if (result) {
+        const blob = new Blob([result.data], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = result.filename
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast({
+          title: 'Success',
+          description: 'Contacts exported successfully',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to export contacts',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const {
     register,
@@ -74,13 +101,15 @@ export function ContactsClient() {
     })
   }
 
-  const filteredContacts =
-    contacts?.filter(
+  const filteredContacts = useMemo(() => {
+    if (!contacts) return []
+    return contacts.filter(
       (contact) =>
         contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         contact.phone.includes(searchQuery) ||
         contact.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || []
+    )
+  }, [contacts, searchQuery])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -88,13 +117,18 @@ export function ContactsClient() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Contacts</h1>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Contact
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Contact
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Contact</DialogTitle>
@@ -171,6 +205,7 @@ export function ContactsClient() {
             </Dialog>
           </div>
         </div>
+      </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">

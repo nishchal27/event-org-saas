@@ -35,19 +35,25 @@ Create a new event.
   title: string                    // Required, min 1 char
   imageUrl?: string                 // Optional, must be valid URL
   eventDate: string                 // ISO date string
+  endDate: string                   // ISO date string
   startTime: string                 // HH:mm format
-  endTime?: string                  // Optional, HH:mm format
+  endTime: string                   // HH:mm format
   locationType: "physical" | "online"
   location: string                  // Required, min 1 char
   description: string              // Required, min 1 char
   additionalNotes?: string          // Optional
   audienceType: "all" | "selected" | "public"
+  maxCapacity?: number              // Optional, positive integer
   customField1Label?: string        // Optional
   customField1Value?: string        // Optional
   customField2Label?: string        // Optional
   customField2Value?: string        // Optional
 }
 ```
+
+**New Fields:**
+- `maxCapacity`: Set maximum attendees (triggers waitlist when full)
+- QR code is automatically generated on creation
 
 **Returns:**
 ```typescript
@@ -575,6 +581,420 @@ const attendee = await trpc.attendee.register.mutate({
   phone: "9876543210",
   email: "john@example.com",
   status: "confirmed"
+})
+```
+
+---
+
+## Analytics Router
+
+### `analytics.getOverview`
+
+Get comprehensive dashboard analytics and trends.
+
+**Type:** `protectedProcedure`
+
+**Returns:**
+```typescript
+{
+  currentMonth: {
+    events: number
+    attendees: number
+    confirmed: number
+    responseRate: number
+  }
+  lastMonth: {
+    events: number
+    confirmed: number
+  }
+  trends: {
+    eventsChange: number      // Percentage change
+    attendanceChange: number  // Percentage change
+  }
+  upcomingEvents: number
+  monthlyEvents: Array<{ month: string, count: number }>
+  monthlyAttendance: Array<{ month: string, count: number }>
+}
+```
+
+**Example:**
+```typescript
+const { data: analytics } = trpc.analytics.getOverview.useQuery()
+```
+
+---
+
+### `analytics.getEventStats`
+
+Get detailed statistics for a specific event.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  eventId: string
+}
+```
+
+**Returns:**
+```typescript
+{
+  totalInvited: number
+  confirmed: number
+  declined: number
+  pending: number
+  waitlist: number
+  checkedIn: number
+  responseRate: number
+  attendanceRate: number
+  whatsappSent: number
+  whatsappDeliveryRate: number
+  capacity: number | null
+  capacityUsed: number | null
+}
+```
+
+---
+
+### `analytics.getContactEngagement`
+
+Get engagement metrics for all contacts.
+
+**Type:** `protectedProcedure`
+
+**Returns:**
+```typescript
+Array<{
+  contactId: string
+  name: string
+  phone: string
+  totalEvents: number
+  confirmedEvents: number
+  checkedInEvents: number
+  engagementRate: number
+  lastEventDate: Date | null
+}>
+```
+
+---
+
+## Template Router
+
+### `template.create`
+
+Create a new event template.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  name: string
+  title: string
+  description: string
+  locationType: "physical" | "online"
+  location?: string
+  startTime?: string
+  endTime?: string
+  additionalNotes?: string
+  customField1Label?: string
+  customField1Value?: string
+  customField2Label?: string
+  customField2Value?: string
+  maxCapacity?: number
+}
+```
+
+**Returns:** `EventTemplate` object
+
+---
+
+### `template.getAll`
+
+Get all templates for the organization.
+
+**Type:** `protectedProcedure`
+
+**Returns:** `Array<EventTemplate>`
+
+---
+
+### `template.getById`
+
+Get a specific template by ID.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+}
+```
+
+**Returns:** `EventTemplate` object
+
+---
+
+### `template.update`
+
+Update an existing template.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+  data: Partial<EventTemplateSchema>
+}
+```
+
+---
+
+### `template.delete`
+
+Delete a template.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+}
+```
+
+---
+
+## Export Router
+
+### `export.exportEvents`
+
+Export all events as CSV.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  format: "csv"
+}
+```
+
+**Returns:**
+```typescript
+{
+  data: string      // CSV content
+  format: "csv"
+  filename: string  // e.g., "events-1234567890.csv"
+}
+```
+
+**Usage:**
+```typescript
+const { data } = trpc.export.exportEvents.useQuery({ format: 'csv' })
+// Download CSV file
+const blob = new Blob([data.data], { type: 'text/csv' })
+const url = window.URL.createObjectURL(blob)
+const a = document.createElement('a')
+a.href = url
+a.download = data.filename
+a.click()
+```
+
+---
+
+### `export.exportContacts`
+
+Export all contacts as CSV.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  format: "csv"
+}
+```
+
+**Returns:** CSV data with filename
+
+---
+
+### `export.exportEventAttendance`
+
+Export attendance report for a specific event.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  eventId: string
+  format: "csv"
+}
+```
+
+**Returns:** CSV data with event-specific filename
+
+---
+
+## Group Router
+
+### `group.create`
+
+Create a new contact group.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  name: string
+  description?: string
+  contactIds: string[]  // Array of contact IDs
+}
+```
+
+**Returns:** `ContactGroup` object
+
+---
+
+### `group.getAll`
+
+Get all contact groups with contact details.
+
+**Type:** `protectedProcedure`
+
+**Returns:**
+```typescript
+Array<{
+  ...ContactGroup
+  contacts: Contact[]
+  contactCount: number
+}>
+```
+
+---
+
+### `group.getById`
+
+Get a specific group by ID.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+}
+```
+
+---
+
+### `group.update`
+
+Update a contact group.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+  data: {
+    name?: string
+    description?: string
+    contactIds?: string[]
+  }
+}
+```
+
+---
+
+### `group.delete`
+
+Delete a contact group.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+}
+```
+
+---
+
+## Enhanced Attendee Router
+
+### `attendee.checkIn`
+
+Manually check in an attendee (protected).
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  eventId: string
+  attendeeId: string
+}
+```
+
+**Returns:** Updated `Attendee` with `checkedIn: true`
+
+---
+
+### `attendee.checkInByQR`
+
+Check in an attendee using QR code (public).
+
+**Type:** `publicProcedure`
+
+**Input:**
+```typescript
+{
+  qrCode: string    // Event QR code
+  phone: string     // Attendee phone number
+}
+```
+
+**Returns:** Updated `Attendee` with check-in status
+
+**Errors:**
+- `NOT_FOUND`: Event or attendee not found
+- `BAD_REQUEST`: Already checked in
+
+---
+
+## Enhanced Event Router
+
+### `event.duplicate` (Enhanced)
+
+Duplicate an event with optional date shift.
+
+**Type:** `protectedProcedure`
+
+**Input:**
+```typescript
+{
+  id: string
+  daysOffset?: number  // Default: 0 (same date)
+}
+```
+
+**Returns:** New `Event` object
+
+**Example:**
+```typescript
+// Duplicate for next week
+await trpc.event.duplicate.mutate({
+  id: eventId,
+  daysOffset: 7
 })
 ```
 

@@ -65,8 +65,7 @@ export function CTA() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: 0.1 }}
                 >
-                  Join thousands of NGOs and communities using EventOrg to create amazing events and
-                  keep attendees informed. Start your free trial today—no credit card required.
+                  Join trainers, coaches, and organizers using EventOrg to create events, notify people on WhatsApp, and track attendance. Start your free trial today—no credit card required.
                 </motion.p>
                 <motion.div
                   className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"

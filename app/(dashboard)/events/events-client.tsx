@@ -3,7 +3,7 @@
 import { trpc } from '@/lib/trpc-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Calendar, MapPin, Clock, Users, MoreVertical, Edit, Copy, Trash2 } from 'lucide-react'
+import { Plus, Calendar, MapPin, Clock, Users, MoreVertical, Edit, Copy, Trash2, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatTime } from '@/lib/utils'
 import {
@@ -12,30 +12,67 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useToast } from '@/hooks/use-toast'
 
 export function EventsClient() {
   const router = useRouter()
+  const { toast } = useToast()
   const utils = trpc.useUtils()
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [daysOffset, setDaysOffset] = useState(7)
+  
   const { data: events, isLoading } = trpc.event.getAll.useQuery(undefined, {
     // Events list is fresh for 1 minute
     staleTime: 60 * 1000,
   })
   const duplicateMutation = trpc.event.duplicate.useMutation({
-    onSuccess: () => {
+    onSuccess: (newEvent) => {
       // Invalidate events list to refetch with new duplicated event
       utils.event.getAll.invalidate()
+      setDuplicateDialogOpen(false)
+      toast({
+        title: 'Event duplicated',
+        description: 'Your event has been duplicated successfully.',
+      })
+      router.push(`/events/${newEvent.id}`)
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      })
     },
   })
   const deleteMutation = trpc.event.delete.useMutation({
     onSuccess: () => {
       // Invalidate events list to remove deleted event
       utils.event.getAll.invalidate()
+      toast({
+        title: 'Event deleted',
+        description: 'Your event has been deleted successfully.',
+      })
     },
   })
 
   const handleDuplicate = (id: string) => {
-    duplicateMutation.mutate({ id })
+    setSelectedEventId(id)
+    setDuplicateDialogOpen(true)
+  }
+
+  const handleDuplicateConfirm = () => {
+    if (selectedEventId) {
+      duplicateMutation.mutate({ 
+        id: selectedEventId,
+        daysOffset: daysOffset,
+      })
+    }
   }
 
   const handleDelete = (id: string) => {
@@ -126,6 +163,10 @@ export function EventsClient() {
                             <Copy className="mr-2 h-4 w-4" />
                             Duplicate
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(event.id)}>
+                            <CalendarDays className="mr-2 h-4 w-4" />
+                            Duplicate (Next Week)
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(event.id)}
                             className="text-destructive"
@@ -156,6 +197,42 @@ export function EventsClient() {
           </div>
         )}
       </div>
+
+      {/* Duplicate Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate Event</DialogTitle>
+            <DialogDescription>
+              Create a copy of this event. You can shift the date for recurring events or series.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="daysOffset">Shift date by (days)</Label>
+              <Input
+                id="daysOffset"
+                type="number"
+                value={daysOffset}
+                onChange={(e) => setDaysOffset(Number(e.target.value))}
+                placeholder="7 (for next week)"
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Enter 7 for next week, 14 for 2 weeks later, or 0 to keep the same date.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDuplicateConfirm} disabled={duplicateMutation.isLoading}>
+              {duplicateMutation.isLoading ? 'Duplicating...' : 'Duplicate Event'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

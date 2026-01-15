@@ -8,16 +8,16 @@ import { motion } from 'framer-motion'
 export function Hero() {
   const events = [
     {
-      title: 'Community Meetup',
+      title: 'Workshop',
       date: 'Mar 15',
-      location: 'Downtown',
+      location: 'Studio',
       gradient: 'from-blue-500 to-cyan-500',
       height: 'h-80 sm:h-96 lg:h-[420px]',
       translateY: 'translate-y-0',
       zIndex: 'z-10',
     },
     {
-      title: 'Workshop Series',
+      title: 'Fitness Workshop',
       date: 'Mar 20',
       location: 'Online',
       gradient: 'from-purple-500 to-pink-500',
@@ -26,16 +26,16 @@ export function Hero() {
       zIndex: 'z-20',
     },
     {
-      title: 'Networking Event',
+      title: 'Music Lesson',
       date: 'Mar 25',
-      location: 'City Hall',
+      location: 'Academy',
       gradient: 'from-green-500 to-emerald-500',
       height: 'h-72 sm:h-88 lg:h-[400px]',
       translateY: 'translate-y-4 sm:translate-y-6',
       zIndex: 'z-30',
     },
     {
-      title: 'Charity Fundraiser',
+      title: 'Community Meetup',
       date: 'Apr 2',
       location: 'Community Center',
       gradient: 'from-orange-500 to-red-500',
@@ -44,9 +44,9 @@ export function Hero() {
       zIndex: 'z-40',
     },
     {
-      title: 'Annual Conference',
+      title: 'Dance Workshop',
       date: 'Apr 10',
-      location: 'Convention Center',
+      location: 'Studio',
       gradient: 'from-yellow-500 to-orange-500',
       height: 'h-76 sm:h-92 lg:h-[410px]',
       translateY: 'translate-y-2 sm:translate-y-4',
@@ -97,7 +97,7 @@ export function Hero() {
             className="mb-6 inline-flex items-center gap-2"
           >
             <span className="text-sm font-medium text-primary dark:text-primary/90">
-              Trusted by NGOs & Communities Since 2024
+              WhatsApp-First Event & Attendance Tool
             </span>
             <motion.span
               animate={{ scale: [1, 1.2, 1] }}
@@ -141,9 +141,15 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
-            Welcome to the simplest way to manage events and send WhatsApp notifications to your
-            attendees. Whether it's your first event or your hundredth, every invitation is crafted
-            to impress.
+            Create events, notify people on WhatsApp, and track attendance — for groups, instructors, and organizers. 
+            <motion.span
+              className="block mt-2 font-semibold text-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+            >
+              Now with advanced analytics, templates, QR check-in, and more premium features.
+            </motion.span>
           </motion.p>
 
           {/* CTA Buttons */}

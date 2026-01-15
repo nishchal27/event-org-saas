@@ -21,11 +21,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
   const [submitted, setSubmitted] = useState(false)
 
   const registerMutation = trpc.attendee.register.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setSubmitted(true)
+      const message = data.isWaitlist 
+        ? 'You\'ve been added to the waitlist. We\'ll notify you if a spot opens up!'
+        : 'Your attendance has been confirmed!'
       toast({
         title: 'Success!',
-        description: 'Your attendance has been confirmed',
+        description: message,
       })
     },
     onError: (error) => {
@@ -275,6 +278,27 @@ export function PublicEventClient({ slug }: { slug: string }) {
                       )}
                     >
                       {event.additionalNotes}
+                    </p>
+                  </div>
+                )}
+
+                {event.maxCapacity && (
+                  <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                    <p
+                      className={cn(
+                        'font-medium',
+                        backgroundColor === 'dark' ? 'text-blue-200' : 'text-blue-900'
+                      )}
+                    >
+                      Capacity
+                    </p>
+                    <p
+                      className={cn(
+                        'text-sm mt-1',
+                        backgroundColor === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                      )}
+                    >
+                      Maximum {event.maxCapacity} spots available. If full, you'll be added to the waitlist.
                     </p>
                   </div>
                 )}

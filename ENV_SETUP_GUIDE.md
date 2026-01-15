@@ -148,57 +148,58 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 
 ---
 
-### 4. WhatsApp Cloud API - **REQUIRED for WhatsApp Features**
+### 4. Twilio WhatsApp API - **REQUIRED for WhatsApp Features**
 
-#### Step 1: Create Meta App
+#### Step 1: Create Twilio Account
 
-1. Go to [developers.facebook.com](https://developers.facebook.com)
-2. Click **"My Apps" > "Create App"**
-3. Choose **"Business"** type
-4. Fill in app details
+1. Go to [twilio.com](https://twilio.com)
+2. Sign up for a free account
+3. Verify your email and phone number
 
-#### Step 2: Add WhatsApp Product
+#### Step 2: Get Account Credentials
 
-1. In your app dashboard, click **"Add Product"**
-2. Find **"WhatsApp"** and click **"Set Up"**
-3. Go to **WhatsApp > API Setup**
-
-#### Step 3: Get Credentials
-
-1. **Access Token:**
-   - Click **"Generate token"**
-   - Select your WhatsApp Business Account
-   - Copy the token (temporary tokens expire in 24 hours)
-   - For production, set up a System User for permanent tokens
-
-2. **Phone Number ID:**
-   - Found in **API Setup** page
-   - Copy the ID
-
-3. **Business Account ID:**
-   - Found in **API Setup** page
-   - Copy the ID
+1. Go to **Console Dashboard**
+2. Find your **Account SID** (starts with `AC`)
+3. Find your **Auth Token** (click to reveal)
+4. Copy both values
 
 ```env
-WHATSAPP_ACCESS_TOKEN="your-token-here"
-WHATSAPP_PHONE_NUMBER_ID="123456789012345"
-WHATSAPP_BUSINESS_ACCOUNT_ID="123456789012345"
+TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+TWILIO_AUTH_TOKEN="your-auth-token-here"
 ```
 
-#### Step 4: Set Up Webhook (Optional but Recommended)
+#### Step 3: Set Up WhatsApp
 
-1. In WhatsApp > Configuration
-2. Set webhook URL: `https://yourdomain.com/api/whatsapp/webhook`
-3. Set verify token (use a secure random string)
-4. Subscribe to events:
-   - `messages`
-   - `message_status`
+1. Go to **Messaging > Try it out > Send a WhatsApp message**
+2. Use Twilio's sandbox number initially: `whatsapp:+14155238886`
+3. Follow instructions to join sandbox
+4. For production, get a WhatsApp-enabled number
+
+#### Step 4: Configure WhatsApp Number
+
+1. Go to **Phone Numbers > Manage > Buy a number**
+2. Select country and search for WhatsApp-enabled numbers
+3. Purchase a number
+4. Format: `whatsapp:+[country code][number]`
 
 ```env
-WHATSAPP_VERIFY_TOKEN="your-random-secure-token"
+TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"
 ```
 
-**Note:** WhatsApp Cloud API has a free tier with limited messages. Check pricing for production use.
+**For Production:**
+- Replace with your purchased WhatsApp number
+- Format: `whatsapp:+919876543210` (example for India)
+
+#### Step 5: Set Up Webhook (Optional but Recommended)
+
+1. Go to **Messaging > Settings > WhatsApp Sandbox Settings**
+2. Set status callback URL: `https://yourdomain.com/api/webhooks/twilio`
+3. Enable status callbacks for delivery tracking
+
+**Note:** 
+- Twilio sandbox is free for testing
+- Production pricing: ~₹0.8-1.2 per message
+- See `TWILIO_WHATSAPP_SETUP.md` for detailed instructions
 
 ---
 
@@ -345,11 +346,11 @@ npx prisma studio
 - Try uploading an image
 - Should see image preview
 
-### 5. WhatsApp
+### 5. Twilio WhatsApp
 - Create event
 - Add contacts
 - Send invitation
-- Check WhatsApp message delivery
+- Check Twilio WhatsApp message delivery
 
 ### 6. AI
 - Create event
@@ -396,7 +397,7 @@ npx prisma studio
 
 **Paid Services:**
 - Stripe: 2.9% + ₹2 per transaction
-- WhatsApp: ~₹0.8 per message (after free tier)
+- Twilio WhatsApp: ~₹0.8-1.2 per message (production pricing)
 - OpenAI: ~$0.002 per generation
 
 **Estimated Monthly Cost (100 users):**
@@ -404,7 +405,7 @@ npx prisma studio
 - Auth: ₹0 (free tier)
 - Images: ₹0 (free tier)
 - Payments: 2.9% of revenue
-- WhatsApp: ~₹800 (1,000 messages)
+- Twilio WhatsApp: ~₹800-1200 (1,000 messages)
 - AI: ~₹200 (100 generations)
 
 **Total: ~₹1,000-2,000/month** (excluding payment processing fees)
@@ -427,5 +428,6 @@ npx prisma studio
 - **Database Issues:** Check Prisma docs
 - **Clerk Issues:** [clerk.com/docs](https://clerk.com/docs)
 - **Stripe Issues:** [stripe.com/docs](https://stripe.com/docs)
-- **WhatsApp Issues:** [developers.facebook.com/docs/whatsapp](https://developers.facebook.com/docs/whatsapp)
+- **Twilio WhatsApp Issues:** [twilio.com/docs/whatsapp](https://www.twilio.com/docs/whatsapp)
+- **Twilio Setup Guide:** See `TWILIO_WHATSAPP_SETUP.md`
 - **Cloudinary Issues:** [cloudinary.com/documentation](https://cloudinary.com/documentation)

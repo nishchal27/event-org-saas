@@ -22,6 +22,7 @@ const eventSchema = z
     description: z.string().min(1, 'Description is required'),
     additionalNotes: z.string().optional().nullable(),
     audienceType: z.enum(['all', 'selected', 'public']),
+    maxCapacity: z.number().int().positive().optional().nullable(),
     customField1Label: z.string().optional().nullable(),
     customField1Value: z.string().optional().nullable(),
     customField2Label: z.string().optional().nullable(),
@@ -128,6 +129,8 @@ export const eventRouter = router({
             audienceType: input.audienceType,
             isPublic: input.audienceType === 'public',
             publicSlug: generateSlug(),
+            qrCode: generateSlug(), // Generate unique QR code for check-in
+            maxCapacity: input.maxCapacity ?? null,
             customField1Label: input.customField1Label ?? null,
             customField1Value: input.customField1Value ?? null,
             customField2Label: input.customField2Label ?? null,
@@ -305,6 +308,7 @@ export const eventRouter = router({
             customField1Value: z.string().optional().nullable(),
             customField2Label: z.string().optional().nullable(),
             customField2Value: z.string().optional().nullable(),
+            maxCapacity: z.number().int().positive().optional().nullable(),
           })
           .superRefine((data, ctx) => {
             // Only validate dates if both are provided
@@ -369,6 +373,7 @@ export const eventRouter = router({
       if (input.data.customField1Value !== undefined) updateData.customField1Value = input.data.customField1Value || null
       if (input.data.customField2Label !== undefined) updateData.customField2Label = input.data.customField2Label || null
       if (input.data.customField2Value !== undefined) updateData.customField2Value = input.data.customField2Value || null
+      if (input.data.maxCapacity !== undefined) updateData.maxCapacity = input.data.maxCapacity || null
 
       return ctx.prisma.event.update({
         where: { id: input.id },
@@ -377,7 +382,10 @@ export const eventRouter = router({
     }),
 
   duplicate: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ 
+      id: z.string(),
+      daysOffset: z.number().int().optional().default(0), // For recurring events (e.g., +7 for next week)
+    }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.organization) {
         throw new TRPCError({ code: 'UNAUTHORIZED' })
@@ -422,13 +430,28 @@ export const eventRouter = router({
         })
       }
 
+      // Calculate new dates with offset
+      const newEventDate = new Date(original.eventDate)
+      newEventDate.setDate(newEventDate.getDate() + input.daysOffset)
+      
+      const newEndDate = original.endDate ? new Date(original.endDate) : null
+      if (newEndDate) {
+        newEndDate.setDate(newEndDate.getDate() + input.daysOffset)
+      }
+
+      const titleSuffix = input.daysOffset > 0 
+        ? ` (Next Session)` 
+        : input.daysOffset < 0 
+        ? ` (Previous Session)` 
+        : ` (Copy)`
+
       const duplicated = await ctx.prisma.event.create({
         data: {
           organizationId: ctx.organization.id,
-          title: `${original.title} (Copy)`,
+          title: `${original.title}${titleSuffix}`,
           imageUrl: original.imageUrl,
-          eventDate: original.eventDate,
-          endDate: original.endDate,
+          eventDate: newEventDate,
+          endDate: newEndDate,
           startTime: original.startTime,
           endTime: original.endTime,
           locationType: original.locationType,
@@ -438,6 +461,7 @@ export const eventRouter = router({
           audienceType: original.audienceType,
           isPublic: original.isPublic,
           publicSlug: generateSlug(),
+          maxCapacity: original.maxCapacity,
           customField1Label: original.customField1Label,
           customField1Value: original.customField1Value,
           customField2Label: original.customField2Label,

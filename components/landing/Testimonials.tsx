@@ -6,41 +6,41 @@ import { motion } from 'framer-motion'
 
 const testimonials = [
   {
-    name: 'Sarah Chen',
-    role: 'Community Organizer',
-    organization: 'Green Valley NGO',
+    name: 'Priya Sharma',
+    role: 'Yoga Instructor',
+    organization: 'Zen Yoga Studio',
     content:
-      'EventOrg has transformed how we manage our community events. The WhatsApp automation saves us hours every week, and our attendees love the instant notifications.',
+      'EventOrg has transformed how I manage my yoga classes. The WhatsApp automation saves me hours every week, and my students love the instant reminders. Perfect for tracking attendance too!',
     rating: 5,
-    avatar: 'SC',
+    avatar: 'PS',
     gradient: 'from-green-500 to-emerald-600',
   },
   {
     name: 'Rajesh Kumar',
-    role: 'Event Coordinator',
-    organization: 'Tech Meetup Mumbai',
+    role: 'Fitness Coach',
+    organization: 'FitZone Academy',
     content:
-      'The AI content generation feature is a game-changer. We can create professional event descriptions and social media posts in seconds. Highly recommended!',
+      'The AI content generation feature is a game-changer. I can create professional class descriptions and social media posts in seconds. My students always know when the next session is!',
     rating: 5,
     avatar: 'RK',
     gradient: 'from-purple-500 to-pink-600',
   },
   {
-    name: 'Maria Rodriguez',
-    role: 'Program Director',
-    organization: 'Youth Development Foundation',
+    name: 'Anita Mehta',
+    role: 'Music Teacher',
+    organization: 'Harmony Music School',
     content:
-      'As a non-profit, we needed an affordable solution that could scale. EventOrg delivers exactly that. The free plan got us started, and upgrading was seamless.',
+      'As an independent music teacher, I needed an affordable solution to manage my students and classes. EventOrg delivers exactly that. The free plan got me started, and upgrading was seamless.',
     rating: 5,
-    avatar: 'MR',
+    avatar: 'AM',
     gradient: 'from-blue-500 to-cyan-600',
   },
   {
     name: 'David Thompson',
-    role: 'Community Manager',
-    organization: 'Local Business Network',
+    role: 'Community Organizer',
+    organization: 'Sunset Housing Society',
     content:
-      'The contact management and WhatsApp integration work flawlessly. We can now reach all our members instantly, and the analytics help us understand engagement.',
+      'The contact management and WhatsApp integration work flawlessly. We can now reach all our community members instantly for events and meetings. The attendance tracking is a huge plus!',
     rating: 5,
     avatar: 'DT',
     gradient: 'from-orange-500 to-red-600',
@@ -50,7 +50,7 @@ const testimonials = [
 const stats = [
   { value: '10K+', label: 'Events Created', gradient: 'from-blue-500 to-cyan-500' },
   { value: '500K+', label: 'WhatsApp Messages Sent', gradient: 'from-green-500 to-emerald-500' },
-  { value: '2K+', label: 'Active Organizations', gradient: 'from-purple-500 to-pink-500' },
+  { value: '2K+', label: 'Active Users', gradient: 'from-purple-500 to-pink-500' },
   { value: '98%', label: 'Customer Satisfaction', gradient: 'from-yellow-500 to-orange-500' },
 ]
 
@@ -168,10 +168,10 @@ export function Testimonials() {
           className="mx-auto mb-12 max-w-2xl text-center"
         >
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Loved by NGOs & Communities
+            Loved by Trainers, Coaches & Organizers
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            See what organizations like yours are saying about EventOrg
+            See what instructors, coaches, and community organizers are saying about EventOrg
           </p>
         </motion.div>
 

@@ -12,14 +12,24 @@ const faqs = [
       'No, you can start using EventOrg completely free. Our free plan includes everything you need to create events and send WhatsApp notifications. No credit card required.',
   },
   {
+    question: 'Is this suitable for fitness trainers and coaches?',
+    answer:
+      'Absolutely! EventOrg is perfect for trainers, coaches, and instructors. You can create class schedules, send WhatsApp reminders to students, track attendance, and manage repeat events easily.',
+  },
+  {
     question: 'How do WhatsApp notifications work?',
     answer:
       'EventOrg integrates with WhatsApp Business API to send automated notifications. Once you create an event and add contacts, you can send invitations, reminders, and updates directly to attendees via WhatsApp.',
   },
   {
+    question: 'Can I use this for community events and meetups?',
+    answer:
+      'Yes! EventOrg works great for housing societies, spiritual groups, clubs, and associations. Create events, notify members via WhatsApp, and track who\'s attending—all in one place.',
+  },
+  {
     question: 'Can I import my existing contact list?',
     answer:
-      'Yes! You can import contacts from CSV files or add them manually. Our contact management system makes it easy to organize and group your contacts for different events.',
+      'Yes! You can import contacts from CSV files or add them manually. Our contact management system makes it easy to organize students, members, or attendees into groups for different events.',
   },
   {
     question: 'What happens if a notification fails to send?',

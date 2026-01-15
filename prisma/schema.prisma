@@ -15,6 +15,9 @@ model Attendee {
   phone          String
   email          String?
   status         String
+  isWaitlist     Boolean   @default(false)
+  checkedIn      Boolean   @default(false)
+  checkedInAt    DateTime?
   whatsappSent   Boolean   @default(false)
   whatsappSentAt DateTime?
   createdAt      DateTime  @default(now())
@@ -23,6 +26,8 @@ model Attendee {
   event          Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, phone], name: "eventId_phone")
+  @@index([eventId])
+  @@index([contactId])
   @@map("attendees")
 }
 
@@ -73,11 +78,14 @@ model Event {
   audienceType       String
   isPublic           Boolean           @default(false)
   publicSlug         String            @unique
+  maxCapacity        Int?
+  qrCode             String?           @unique
   customField1Label  String?
   customField1Value  String?
   customField2Label  String?
   customField2Value  String?
   registrationClosed Boolean           @default(false)
+  templateId         String?
   deletedAt          DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -85,7 +93,10 @@ model Event {
   selectedContacts   EventContact[]
   organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   socialPosts        SocialMediaPost[]
+  template           EventTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
+  @@index([organizationId])
+  @@index([eventDate])
   @@map("events")
 }
 
@@ -120,6 +131,9 @@ model Organization {
   socialPosts     SocialMediaPost[]
   subscription    Subscription?
   usage           Usage[]
+  eventTemplates  EventTemplate[]
+  messageTemplates MessageTemplate[]
+  contactGroups   ContactGroup[]
 
   @@map("organizations")
 }
@@ -182,6 +196,59 @@ model Usage {
 
   @@unique([organizationId, month, year])
   @@map("usage")
+}
+
+model EventTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  title          String
+  description    String   @db.Text
+  locationType   String
+  location       String?
+  startTime      String?
+  endTime        String?
+  additionalNotes String? @db.Text
+  customField1Label String?
+  customField1Value String?
+  customField2Label String?
+  customField2Value String?
+  maxCapacity    Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events         Event[]
+
+  @@index([organizationId])
+  @@map("event_templates")
+}
+
+model MessageTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  content        String   @db.Text
+  type           String   // 'invitation', 'reminder', 'followup'
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("message_templates")
+}
+
+model ContactGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  contactIds     String[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("contact_groups")
 }
 
 model User {

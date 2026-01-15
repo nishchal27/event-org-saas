@@ -28,7 +28,7 @@ const plans = [
     name: 'Monthly',
     price: '₹249',
     period: '/month',
-    description: 'For small NGOs & communities',
+    description: 'For trainers, coaches & small groups',
     features: [
       '15 events per month',
       '300 WhatsApp messages/month',
@@ -48,10 +48,10 @@ const plans = [
     name: 'Monthly Pro',
     price: '₹499',
     period: '/month',
-    description: 'For serious & growing organizations',
+    description: 'For growing instructors & organizers',
     features: [
       'Unlimited events',
-      '1,000 WhatsApp messages/month',
+      '800 WhatsApp messages/month',
       '200 AI generations/month',
       'Higher contact limit',
       'Multiple reminders',

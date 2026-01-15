@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import React from 'react'
 import { CldUploadWidget } from 'next-cloudinary'
 import { useToast } from '@/hooks/use-toast'
 
@@ -40,6 +41,7 @@ const eventSchema = z
     description: z.string().min(1, 'Description is required'),
     additionalNotes: z.string().optional().nullable(),
     audienceType: z.enum(['all', 'selected', 'public']),
+    maxCapacity: z.number().int().positive().optional().nullable(),
     customField1Label: z.string().optional().nullable(),
     customField1Value: z.string().optional().nullable(),
     customField2Label: z.string().optional().nullable(),
@@ -81,6 +83,10 @@ export function EventFormClient() {
   const { toast } = useToast()
   const [showCustomFields, setShowCustomFields] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const { data: templates } = trpc.template.getAll.useQuery()
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  
+  type Template = { id: string; name: string }
 
   const {
     register,
@@ -95,6 +101,33 @@ export function EventFormClient() {
       audienceType: 'all',
     },
   })
+
+  const { data: selectedTemplate } = trpc.template.getById.useQuery(
+    { id: selectedTemplateId },
+    { enabled: !!selectedTemplateId }
+  )
+
+  // Pre-fill form when template is selected
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      setValue('title', selectedTemplate.title)
+      setValue('description', selectedTemplate.description)
+      setValue('locationType', selectedTemplate.locationType as 'physical' | 'online')
+      setValue('location', selectedTemplate.location || '')
+      setValue('startTime', selectedTemplate.startTime || '')
+      setValue('endTime', selectedTemplate.endTime || '')
+      setValue('additionalNotes', selectedTemplate.additionalNotes || '')
+      setValue('customField1Label', selectedTemplate.customField1Label || '')
+      setValue('customField1Value', selectedTemplate.customField1Value || '')
+      setValue('customField2Label', selectedTemplate.customField2Label || '')
+      setValue('customField2Value', selectedTemplate.customField2Value || '')
+      setValue('maxCapacity', selectedTemplate.maxCapacity || null)
+      toast({
+        title: 'Template loaded',
+        description: 'Form pre-filled from template. Update dates and details as needed.',
+      })
+    }
+  }, [selectedTemplate, setValue, toast])
 
   const createMutation = trpc.event.create.useMutation({
     onSuccess: (data: any) => {
@@ -131,6 +164,36 @@ export function EventFormClient() {
 
       <div className="container mx-auto px-4 py-8">
         <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-6">
+          {/* Template Selection */}
+          {templates && templates.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Start from Template (Optional)</CardTitle>
+                <CardDescription>Quickly create events from saved templates</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None - Create from scratch</SelectItem>
+                    {templates.map((template: Template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedTemplateId && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Template will pre-fill the form. You can modify any fields.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Section A: Core Event Details */}
           <Card>
             <CardHeader>
@@ -143,7 +206,7 @@ export function EventFormClient() {
                 <Input
                   id="title"
                   {...register('title')}
-                  placeholder="e.g., Community Meditation Session"
+                  placeholder="e.g., Community Meetup, Workshop, Training Session, Event"
                   className="mt-1"
                 />
                 {errors.title && (
@@ -318,7 +381,7 @@ export function EventFormClient() {
                 <Textarea
                   id="description"
                   {...register('description')}
-                  placeholder="Describe your event... Emojis are welcome! 🎉"
+                  placeholder="Describe your event... What will attendees experience? What should they know? Emojis are welcome! 🎉"
                   rows={5}
                   className="mt-1"
                 />
@@ -356,6 +419,24 @@ export function EventFormClient() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="maxCapacity">Maximum Capacity (Optional)</Label>
+                <Input
+                  id="maxCapacity"
+                  type="number"
+                  min="1"
+                  {...register('maxCapacity', { 
+                    valueAsNumber: true,
+                    setValueAs: (v) => v === '' ? null : Number(v)
+                  })}
+                  placeholder="e.g., 20 (for events with limited capacity)"
+                  className="mt-1"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Set a limit for how many people can attend. When full, new registrations will be added to waitlist.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -381,7 +462,7 @@ export function EventFormClient() {
                     <Input
                       id="customField1Label"
                       {...register('customField1Label')}
-                      placeholder="e.g., Session"
+                      placeholder="e.g., Category, Organizer, Requirements"
                       className="mt-1"
                     />
                   </div>
@@ -390,7 +471,7 @@ export function EventFormClient() {
                     <Input
                       id="customField1Value"
                       {...register('customField1Value')}
-                      placeholder="e.g., Meditation Level 1"
+                      placeholder="e.g., All Levels, Professional, Bring ID"
                       className="mt-1"
                     />
                   </div>
@@ -402,7 +483,7 @@ export function EventFormClient() {
                     <Input
                       id="customField2Label"
                       {...register('customField2Label')}
-                      placeholder="e.g., Master"
+                      placeholder="e.g., Facilitator, Duration, Fee"
                       className="mt-1"
                     />
                   </div>
@@ -411,7 +492,7 @@ export function EventFormClient() {
                     <Input
                       id="customField2Value"
                       {...register('customField2Value')}
-                      placeholder="e.g., Shri ABC"
+                      placeholder="e.g., John Doe, 2 hours, Free"
                       className="mt-1"
                     />
                   </div>

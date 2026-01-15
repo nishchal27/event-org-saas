@@ -26,7 +26,7 @@ export function Footer() {
               <span className="text-xl font-semibold">EventOrg</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Event management and WhatsApp notifications made simple for NGOs and communities.
+              Create events, notify people on WhatsApp, and track attendance — for groups, instructors, and organizers.
             </p>
           </div>
 

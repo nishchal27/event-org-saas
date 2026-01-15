@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDate, formatTime } from '@/lib/utils'
-import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy } from 'lucide-react'
+import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy, Download, QrCode } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -39,6 +39,38 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
   )
   const [selectedContacts, setSelectedContacts] = useState<string[]>([])
   const [showContactSelection, setShowContactSelection] = useState(false)
+
+  const exportMutation = trpc.export.exportEventAttendance.useQuery(
+    { eventId, format: 'csv' },
+    { enabled: false } // Only fetch on demand
+  )
+
+  const handleExport = async () => {
+    try {
+      const result = await exportMutation.refetch()
+      if (result.data) {
+        const blob = new Blob([result.data.data], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = result.data.filename
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        toast({
+          title: 'Success',
+          description: 'Attendance report downloaded',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to export attendance',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const whatsappMutation = trpc.whatsapp.sendInvite.useMutation({
     onSuccess: () => {
@@ -100,9 +132,14 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
     )
   }
 
-  const confirmedCount = event.attendees.filter((a) => a.status === 'confirmed').length
+  const confirmedCount = event.attendees.filter((a) => a.status === 'confirmed' && !a.isWaitlist).length
+  const waitlistCount = event.attendees.filter((a) => a.isWaitlist).length
   const declinedCount = event.attendees.filter((a) => a.status === 'declined').length
   const pendingCount = event.attendees.filter((a) => a.status === 'pending').length
+  const checkedInCount = event.attendees.filter((a) => a.checkedIn).length
+  const capacityInfo = event.maxCapacity 
+    ? `${confirmedCount} / ${event.maxCapacity} spots filled`
+    : null
   const startDateLabel = formatDate(event.eventDate)
   const endDateLabel = event.endDate ? formatDate(event.endDate) : null
   const dateLabel =
@@ -135,6 +172,18 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                 <Copy className="mr-2 h-4 w-4" />
                 Copy Link
               </Button>
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              {event.qrCode && (
+                <Link href={`/events/${eventId}/checkin`}>
+                  <Button variant="outline">
+                    <QrCode className="mr-2 h-4 w-4" />
+                    Check-in
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -146,7 +195,14 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
             <Tabs defaultValue="details" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="attendees">Attendees ({event.attendees.length})</TabsTrigger>
+                <TabsTrigger value="attendees">
+                  Attendees ({event.attendees.length})
+                  {checkedInCount > 0 && (
+                    <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                      {checkedInCount} checked in
+                    </span>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="posts">
                   <Sparkles className="mr-1 h-4 w-4" />
                   Posts {posts && posts.length > 0 && `(${posts.length})`}
@@ -236,12 +292,28 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="mb-4 grid grid-cols-3 gap-4">
+                    {event.maxCapacity && (
+                      <div className="mb-4 rounded-lg bg-blue-50 p-4">
+                        <p className="text-sm font-medium text-blue-900">Capacity</p>
+                        <p className="text-2xl font-bold text-blue-600">{capacityInfo}</p>
+                        {waitlistCount > 0 && (
+                          <p className="mt-1 text-sm text-blue-700">{waitlistCount} on waitlist</p>
+                        )}
+                      </div>
+                    )}
+                    <div className={`mb-4 grid gap-4 ${event.maxCapacity ? 'grid-cols-4' : 'grid-cols-3'}`}>
                       <div className="rounded-lg bg-green-50 p-4 text-center">
                         <CheckCircle className="mx-auto h-6 w-6 text-green-600" />
                         <p className="mt-2 text-2xl font-bold text-green-600">{confirmedCount}</p>
                         <p className="text-sm text-gray-600">Confirmed</p>
                       </div>
+                      {waitlistCount > 0 && (
+                        <div className="rounded-lg bg-yellow-50 p-4 text-center">
+                          <Users className="mx-auto h-6 w-6 text-yellow-600" />
+                          <p className="mt-2 text-2xl font-bold text-yellow-600">{waitlistCount}</p>
+                          <p className="text-sm text-gray-600">Waitlist</p>
+                        </div>
+                      )}
                       <div className="rounded-lg bg-red-50 p-4 text-center">
                         <XCircle className="mx-auto h-6 w-6 text-red-600" />
                         <p className="mt-2 text-2xl font-bold text-red-600">{declinedCount}</p>
@@ -267,16 +339,25 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                               <p className="font-medium">{attendee.name}</p>
                               <p className="text-sm text-gray-600">{attendee.phone}</p>
                             </div>
-                            <div
-                              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                                attendee.status === 'confirmed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : attendee.status === 'declined'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {attendee.status}
+                            <div className="flex items-center gap-2">
+                              {attendee.checkedIn && (
+                                <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                  ✓ Checked In
+                                </div>
+                              )}
+                              <div
+                                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                                  attendee.status === 'confirmed'
+                                    ? attendee.isWaitlist
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-green-100 text-green-800'
+                                    : attendee.status === 'declined'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {attendee.isWaitlist ? 'Waitlist' : attendee.status}
+                              </div>
                             </div>
                           </div>
                         ))
@@ -345,6 +426,24 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                   <p className="text-sm text-gray-600">Confirmed</p>
                   <p className="text-2xl font-bold text-green-600">{confirmedCount}</p>
                 </div>
+                {event.maxCapacity && (
+                  <div>
+                    <p className="text-sm text-gray-600">Capacity</p>
+                    <p className="text-2xl font-bold">{capacityInfo}</p>
+                  </div>
+                )}
+                {waitlistCount > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-600">Waitlist</p>
+                    <p className="text-2xl font-bold text-yellow-600">{waitlistCount}</p>
+                  </div>
+                )}
+                {checkedInCount > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-600">Checked In</p>
+                    <p className="text-2xl font-bold text-blue-600">{checkedInCount}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-gray-600">Response Rate</p>
                   <p className="text-2xl font-bold">

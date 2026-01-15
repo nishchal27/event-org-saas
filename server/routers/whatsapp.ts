@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import twilio from 'twilio'
 
 export const whatsappRouter = router({
   sendInvite: protectedProcedure
@@ -80,7 +81,7 @@ export const whatsappRouter = router({
 
       const message = input.message || defaultMessage
 
-      // Send WhatsApp messages (implement actual WhatsApp API call)
+      // Send WhatsApp messages via Twilio
       const sentCount = await sendWhatsAppMessages(contacts, message, eventUrl)
 
       // Update usage
@@ -107,52 +108,121 @@ export const whatsappRouter = router({
     }),
 })
 
+/**
+ * Format phone number to E.164 format required by Twilio
+ * E.164 format: +[country code][number] (e.g., +919876543210)
+ */
+function formatPhoneNumber(phone: string): string | null {
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '')
+  
+  // If already starts with +, return as is (assuming it's already in E.164)
+  if (phone.startsWith('+')) {
+    return phone.replace(/\s/g, '')
+  }
+  
+  // If starts with 0, remove it (common in India)
+  const cleaned = digits.startsWith('0') ? digits.substring(1) : digits
+  
+  // If it's 10 digits, assume it's an Indian number and add +91
+  if (cleaned.length === 10) {
+    return `+91${cleaned}`
+  }
+  
+  // If it's 12 digits and starts with 91, add +
+  if (cleaned.length === 12 && cleaned.startsWith('91')) {
+    return `+${cleaned}`
+  }
+  
+  // If it's 11 digits and starts with 1, assume US number
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `+${cleaned}`
+  }
+  
+  // If it's already 11-15 digits, try adding + (might be international)
+  if (cleaned.length >= 11 && cleaned.length <= 15) {
+    return `+${cleaned}`
+  }
+  
+  // Invalid format
+  console.warn(`Invalid phone number format: ${phone}`)
+  return null
+}
+
 async function sendWhatsAppMessages(
   contacts: Array<{ phone: string; name: string }>,
   message: string,
   eventUrl: string
 ): Promise<number> {
-  // TODO: Implement actual WhatsApp Cloud API integration
-  // This is a placeholder
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  const whatsappFrom = process.env.TWILIO_WHATSAPP_FROM // Format: whatsapp:+14155238886
 
-  if (!accessToken || !phoneNumberId) {
-    console.warn('WhatsApp credentials not configured')
+  if (!accountSid || !authToken || !whatsappFrom) {
+    console.warn('Twilio WhatsApp credentials not configured')
+    console.warn('Required: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM')
     return 0
   }
 
+  // Initialize Twilio client
+  const client = twilio(accountSid, authToken)
+
   let sent = 0
+  const errors: Array<{ phone: string; error: string }> = []
+
   for (const contact of contacts) {
     try {
-      // Format phone number (remove +, spaces, etc.)
-      const phone = contact.phone.replace(/\D/g, '')
-
-      const response = await fetch(
-        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: phone,
-            type: 'text',
-            text: {
-              body: message.replace(contact.name, contact.name),
-            },
-          }),
-        }
-      )
-
-      if (response.ok) {
-        sent++
+      // Format phone number to E.164 format
+      const toPhone = formatPhoneNumber(contact.phone)
+      
+      if (!toPhone) {
+        errors.push({ phone: contact.phone, error: 'Invalid phone number format' })
+        continue
       }
-    } catch (error) {
-      console.error(`Failed to send WhatsApp to ${contact.phone}:`, error)
+
+      // Format the message with contact name if placeholder exists
+      const personalizedMessage = message.includes('{name}') 
+        ? message.replace(/{name}/g, contact.name)
+        : message
+
+      // Build status callback URL if webhook is configured
+      const statusCallback = process.env.NEXT_PUBLIC_APP_URL
+        ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio`
+        : undefined
+
+      // Send WhatsApp message via Twilio
+      const twilioMessage = await client.messages.create({
+        from: whatsappFrom, // Must be in format: whatsapp:+14155238886
+        to: `whatsapp:${toPhone}`, // Must be in format: whatsapp:+919876543210
+        body: personalizedMessage,
+        statusCallback: statusCallback, // Optional: for delivery status tracking
+      })
+
+      // Check if message was successfully queued
+      if (twilioMessage.sid) {
+        sent++
+        console.log(`WhatsApp message sent to ${contact.phone} (${toPhone}): ${twilioMessage.sid}`)
+      } else {
+        errors.push({ phone: contact.phone, error: 'Message SID not returned' })
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'Unknown error'
+      errors.push({ phone: contact.phone, error: errorMessage })
+      console.error(`Failed to send WhatsApp to ${contact.phone}:`, errorMessage)
+      
+      // Log more details for debugging
+      if (error.code) {
+        console.error(`Twilio error code: ${error.code}`)
+      }
+      if (error.moreInfo) {
+        console.error(`Twilio more info: ${error.moreInfo}`)
+      }
     }
+  }
+
+  // Log summary
+  if (errors.length > 0) {
+    console.warn(`WhatsApp sending completed with ${errors.length} error(s):`, errors)
   }
 
   return sent

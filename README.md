@@ -1,6 +1,6 @@
-# EventOrg - Event Management SaaS
+# EventOrg - WhatsApp-First Event & Attendance Tool
 
-A comprehensive event management micro-SaaS built for communities, NGOs, schools, and organizations in India. Features WhatsApp automation, AI content generation, and a mobile-first PWA experience.
+Create events, notify people on WhatsApp, and track attendance — for groups, instructors, and organizers. Perfect for trainers, coaches, communities, and event organizers. Features WhatsApp automation, AI content generation, and a mobile-first PWA experience.
 
 ## Tech Stack
 
@@ -12,7 +12,7 @@ A comprehensive event management micro-SaaS built for communities, NGOs, schools
 - **UI**: Tailwind CSS + shadcn/ui
 - **Payments**: Stripe
 - **Images**: Cloudinary
-- **WhatsApp**: Meta WhatsApp Cloud API
+- **WhatsApp**: Twilio WhatsApp API
 - **AI**: OpenAI (or compatible LLM)
 - **PWA**: next-pwa
 
@@ -27,12 +27,23 @@ A comprehensive event management micro-SaaS built for communities, NGOs, schools
 - ✅ Event preview before sending
 - ✅ Attendee tracking (confirmed/declined/pending)
 - ✅ Usage limits and metering
-- ✅ Subscription management (Free, Monthly, Yearly)
+- ✅ Subscription management (Free, Monthly, Pro)
+
+### Premium Features
+- ✅ **Advanced Analytics Dashboard** - Real-time metrics, trends, and insights with interactive charts
+- ✅ **Event Templates** - Save and reuse event configurations for quick creation
+- ✅ **CSV Export** - Export events, contacts, and attendance reports
+- ✅ **QR Code Check-in** - On-site attendance tracking with QR codes
+- ✅ **Contact Groups** - Organize contacts into groups for better segmentation
+- ✅ **Capacity Limits & Waitlist** - Set max capacity and automatic waitlist management
+- ✅ **Contact Engagement Tracking** - Track contact activity and engagement rates
+- ✅ **Recurring Events** - Duplicate events with date shift for recurring series
+- ✅ **Enhanced Dashboard UX** - Modern, intuitive interface with quick actions
 
 ### Pricing Tiers
-- **Free**: 2 events/month, 100 contacts, 50 WhatsApp messages, 5 AI generations
-- **Monthly (₹199)**: 10 events/month, 300 contacts, 500 WhatsApp messages, 30 AI generations
-- **Yearly (₹1,999)**: 30 events/month, 1,000 contacts, 3,000 WhatsApp messages, 200 AI generations
+- **Free**: 2 events/month, 60 WhatsApp messages, 10 AI generations, basic analytics
+- **Monthly (₹249)**: 15 events/month, 300 WhatsApp messages, 60 AI generations, full analytics, templates, exports, QR check-in
+- **Monthly Pro (₹499)**: Unlimited events, 800 WhatsApp messages, 200 AI generations, all premium features, priority support
 
 ## Getting Started
 
@@ -106,24 +117,55 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### Event Management
 - Create events with core fields (title, date, time, location, description)
 - Optional custom fields (max 2)
+- **Event templates** for quick creation
+- **Capacity limits** and automatic waitlist
+- **QR code check-in** for on-site attendance
 - Event preview before sending
-- Duplicate and delete events
+- Duplicate events with date shift for recurring series
+- Delete events (soft delete)
+
+### Analytics & Insights
+- **Real-time dashboard** with key metrics
+- **6-month trends** (events and attendance)
+- **Response rate tracking**
+- **Contact engagement** analytics
+- Month-over-month comparisons
+- Interactive charts and visualizations
+
+### Contact Management
+- Add, edit, and organize contacts
+- **Contact groups** for segmentation
+- **Tag-based organization**
+- **CSV export** for backup and reporting
+- Bulk import support
+- Contact activity history
 
 ### WhatsApp Integration
 - Send bulk WhatsApp invitations
-- Track sent messages
+- Track sent messages and delivery status
+- **Message templates** (coming soon)
 - Respect usage limits per plan
+- Personalized messages with contact names
 
 ### AI Content Generation
 - Generate WhatsApp invitation messages
-- Generate social media posts (Instagram, Facebook)
+- Generate social media posts (Instagram, Facebook, Twitter, LinkedIn)
+- Multiple tone options
 - Usage tracking and limits
 
 ### Public Event Pages
 - Mobile-first design
 - No login required
-- RSVP functionality
+- RSVP functionality with capacity awareness
+- **Waitlist support** when event is full
 - Customizable branding
+- QR code for check-in
+
+### Export & Reporting
+- **CSV export** for events
+- **CSV export** for contacts
+- **CSV export** for attendance reports
+- All exports include comprehensive data
 
 ## Deployment
 
@@ -139,6 +181,16 @@ Use Supabase or any PostgreSQL provider. Update `DATABASE_URL` in your environme
 ## License
 
 MIT
+
+## Documentation
+
+Comprehensive documentation is available:
+
+- **[DOCUMENTATION.md](./DOCUMENTATION.md)** - Complete technical documentation
+- **[API_REFERENCE.md](./API_REFERENCE.md)** - API endpoints reference
+- **[USER_GUIDE_PREMIUM_FEATURES.md](./USER_GUIDE_PREMIUM_FEATURES.md)** - User guide for premium features
+- **[SETUP_PREMIUM_FEATURES.md](./SETUP_PREMIUM_FEATURES.md)** - Premium features setup
+- **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** - Complete documentation index
 
 ## Support
 

@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/landing/Navbar'
 import { Hero } from '@/components/landing/Hero'
 import { Features } from '@/components/landing/Features'
+import { PremiumFeatures } from '@/components/landing/PremiumFeatures'
 import { EventFormPreview } from '@/components/landing/EventFormPreview'
 import { Pricing } from '@/components/landing/Pricing'
 import { Testimonials } from '@/components/landing/Testimonials'
@@ -17,6 +18,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Features />
+        <PremiumFeatures />
         <EventFormPreview />
         <Pricing />
         <Testimonials />

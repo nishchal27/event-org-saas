@@ -9,7 +9,7 @@ const coreFeatures = [
   {
     icon: Calendar,
     title: 'Create Events in Minutes',
-    description: 'Rich event details, custom fields, and beautiful banners. Everything you need to set up professional events.',
+    description: 'Rich event details, custom fields, and beautiful banners. Perfect for workshops, meetups, training sessions, and any event.',
     gradient: 'from-blue-500 to-cyan-500',
     highlight: '2 min setup',
   },
@@ -32,7 +32,7 @@ const coreFeatures = [
   {
     icon: Users,
     title: 'Smart Contact Management',
-    description: 'Organize contacts, create groups, and send targeted invitations. Import in bulk or add manually.',
+    description: 'Organize contacts, attendees, and members. Create groups for different events or categories. Import in bulk or add manually.',
     gradient: 'from-purple-500 to-pink-500',
     highlight: 'Bulk import',
   },
@@ -78,11 +78,23 @@ export function Features() {
           transition={{ duration: 0.6 }}
           className="mx-auto mb-16 max-w-3xl text-center"
         >
+          <motion.div
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 px-4 py-2 text-sm font-medium text-primary backdrop-blur-sm"
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: 'spring', stiffness: 400 }}
+          >
+            <Zap className="h-4 w-4" />
+            <span>Core Features</span>
+          </motion.div>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Powerful Features, Simple Experience
+            <span className="bg-gradient-to-r from-primary via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Everything You Need
+            </span>
+            <br />
+            <span className="text-foreground">In One Platform</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Everything you need to create, manage, and promote your events—all in one platform.
+            Powerful tools designed for trainers, coaches, and organizers. Create events, manage contacts, send WhatsApp notifications, and track attendance—all seamlessly integrated.
           </p>
         </motion.div>
 
@@ -175,8 +187,7 @@ export function Features() {
               Beautiful Pages Your Attendees Will Love
             </h3>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Each event gets a stunning, mobile-optimized public page. No login required. Share
-              instantly via WhatsApp, email, or social media.
+              Each event gets a stunning, mobile-optimized public page. No login required. Perfect for sharing event details, schedules, or announcements via WhatsApp.
             </p>
           </div>
 
@@ -197,7 +208,7 @@ export function Features() {
                   <div className="h-3 w-3 rounded-full bg-green-500"></div>
                 </div>
                 <div className="ml-4 flex-1 rounded-md bg-gray-800 px-3 py-1 text-center text-xs text-gray-400">
-                  eventorg.com/event/community-meetup-2024
+                  eventorg.com/event/workshop-march-2024
                 </div>
               </div>
 
@@ -226,7 +237,7 @@ export function Features() {
                 {/* Event Content */}
                 <div className="px-6 py-8">
                   <h2 className="mb-2 text-2xl font-bold text-gray-900">
-                    Community Meetup 2024
+                    Community Workshop
                   </h2>
                   <div className="mb-6 space-y-3 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
@@ -240,8 +251,8 @@ export function Features() {
                   </div>
 
                   <p className="mb-6 text-sm leading-relaxed text-gray-700">
-                    Join us for an exciting community gathering! Connect with neighbors, enjoy
-                    activities, and celebrate together. Food and refreshments will be provided.
+                    Join us for an engaging workshop! Learn new skills, connect with others, and grow together. 
+                    All are welcome. Refreshments will be provided.
                   </p>
 
                   {/* RSVP Form Mockup */}
