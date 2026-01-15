@@ -180,10 +180,12 @@ async function sendWhatsAppMessages(
         continue
       }
 
-      // Format the message with contact name if placeholder exists
-      const personalizedMessage = message.includes('{name}') 
-        ? message.replace(/{name}/g, contact.name)
-        : message
+      // Format the message with contact name and event details if placeholders exist
+      let personalizedMessage = message
+      if (personalizedMessage.includes('{name}')) {
+        personalizedMessage = personalizedMessage.replace(/{name}/g, contact.name)
+      }
+      // Note: Event-specific variables ({eventTitle}, {eventDate}, etc.) should be replaced before calling this function
 
       // Build status callback URL if webhook is configured
       const statusCallback = process.env.NEXT_PUBLIC_APP_URL

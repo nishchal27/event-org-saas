@@ -11,6 +11,7 @@ import { analyticsRouter } from './analytics'
 import { templateRouter } from './template'
 import { exportRouter } from './export'
 import { groupRouter } from './group'
+import { messageTemplateRouter } from './messageTemplate'
 
 export const appRouter = router({
   event: eventRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   template: templateRouter,
   export: exportRouter,
   group: groupRouter,
+  messageTemplate: messageTemplateRouter,
 })
 
 export type AppRouter = typeof appRouter

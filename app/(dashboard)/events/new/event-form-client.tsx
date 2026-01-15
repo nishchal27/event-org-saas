@@ -22,6 +22,15 @@ import { useState } from 'react'
 import React from 'react'
 import { CldUploadWidget } from 'next-cloudinary'
 import { useToast } from '@/hooks/use-toast'
+import { FileText } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number)
@@ -83,8 +92,11 @@ export function EventFormClient() {
   const { toast } = useToast()
   const [showCustomFields, setShowCustomFields] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
+  const [templateName, setTemplateName] = useState('')
   const { data: templates } = trpc.template.getAll.useQuery()
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const utils = trpc.useUtils()
   
   type Template = { id: string; name: string }
 
@@ -128,6 +140,25 @@ export function EventFormClient() {
       })
     }
   }, [selectedTemplate, setValue, toast])
+
+  const createTemplateMutation = trpc.template.create.useMutation({
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Template saved successfully',
+      })
+      utils.template.getAll.invalidate()
+      setShowSaveTemplateDialog(false)
+      setTemplateName('')
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      })
+    },
+  })
 
   const createMutation = trpc.event.create.useMutation({
     onSuccess: (data: any) => {
@@ -502,18 +533,105 @@ export function EventFormClient() {
           </Card>
 
           <div className="flex gap-4">
-            <Button type="submit" disabled={createMutation.isLoading}>
-              {createMutation.isLoading ? 'Creating...' : 'Create Event'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-            >
-              Cancel
-            </Button>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={createMutation.isLoading}>
+                {createMutation.isLoading ? 'Creating...' : 'Create Event'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const formData = watch()
+                  if (!formData.title || !formData.description) {
+                    toast({
+                      title: 'Error',
+                      description: 'Please fill in title and description before saving as template',
+                      variant: 'destructive',
+                    })
+                    return
+                  }
+                  setShowSaveTemplateDialog(true)
+                }}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Save as Template
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </form>
+
+        {/* Save as Template Dialog */}
+        <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save as Template</DialogTitle>
+              <DialogDescription>
+                Save this event configuration as a reusable template
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="template-name">Template Name *</Label>
+                <Input
+                  id="template-name"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g., Weekly Workshop, Monthly Meetup"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSaveTemplateDialog(false)
+                  setTemplateName('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const formData = watch()
+                  if (!templateName) {
+                    toast({
+                      title: 'Error',
+                      description: 'Please enter a template name',
+                      variant: 'destructive',
+                    })
+                    return
+                  }
+                  createTemplateMutation.mutate({
+                    name: templateName,
+                    title: formData.title,
+                    description: formData.description,
+                    locationType: formData.locationType,
+                    location: formData.location || null,
+                    startTime: formData.startTime || null,
+                    endTime: formData.endTime || null,
+                    additionalNotes: formData.additionalNotes || null,
+                    customField1Label: formData.customField1Label || null,
+                    customField1Value: formData.customField1Value || null,
+                    customField2Label: formData.customField2Label || null,
+                    customField2Value: formData.customField2Value || null,
+                    maxCapacity: formData.maxCapacity || null,
+                  })
+                }}
+                disabled={createTemplateMutation.isLoading || !templateName}
+              >
+                {createTemplateMutation.isLoading ? 'Saving...' : 'Save Template'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

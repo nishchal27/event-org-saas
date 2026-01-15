@@ -10,7 +10,9 @@ import { ThemeToggle } from '@/components/theme-toggle'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/events', label: 'Events', icon: Calendar },
+  { href: '/events/templates', label: 'Templates', icon: Calendar },
   { href: '/contacts', label: 'Contacts', icon: Users },
+  { href: '/contacts/groups', label: 'Groups', icon: Users },
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]

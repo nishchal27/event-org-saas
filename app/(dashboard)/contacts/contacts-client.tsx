@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Search, Mail, Phone, MapPin, Download } from 'lucide-react'
+import { Plus, Search, Mail, Phone, MapPin, Download, Users, TrendingUp, Calendar, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -36,6 +37,9 @@ export function ContactsClient() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const utils = trpc.useUtils()
   const { data: contacts, isLoading, refetch } = trpc.contact.getAll.useQuery()
+  const { data: engagement } = trpc.analytics.getContactEngagement.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
 
   const handleExport = async () => {
     try {
@@ -111,12 +115,30 @@ export function ContactsClient() {
     )
   }, [contacts, searchQuery])
 
+  // Create engagement map for quick lookup
+  const engagementMap = useMemo(() => {
+    if (!engagement) return new Map()
+    const map = new Map()
+    engagement.forEach((eng) => {
+      map.set(eng.contactId, eng)
+    })
+    return map
+  }, [engagement])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Contacts</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold">Contacts</h1>
+              <Link href="/contacts/groups">
+                <Button variant="ghost" size="sm">
+                  <Users className="mr-2 h-4 w-4" />
+                  Groups
+                </Button>
+              </Link>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" />
@@ -239,34 +261,62 @@ export function ContactsClient() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredContacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center justify-between rounded-lg border p-4 hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{contact.name}</h3>
-                      <div className="mt-1 flex flex-wrap gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-4 w-4" />
-                          {contact.phone}
+                {filteredContacts.map((contact) => {
+                  const contactEngagement = engagementMap.get(contact.id)
+                  return (
+                    <div
+                      key={contact.id}
+                      className="flex items-center justify-between rounded-lg border p-4 hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">{contact.name}</h3>
+                          {contactEngagement && contactEngagement.totalEvents > 0 && (
+                            <div className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                              <TrendingUp className="h-3 w-3" />
+                              <span>{Math.round(contactEngagement.engagementRate)}% engaged</span>
+                            </div>
+                          )}
                         </div>
-                        {contact.email && (
+                        <div className="mt-1 flex flex-wrap gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
-                            <Mail className="h-4 w-4" />
-                            {contact.email}
+                            <Phone className="h-4 w-4" />
+                            {contact.phone}
                           </div>
-                        )}
-                        {contact.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {contact.location}
-                          </div>
+                          {contact.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-4 w-4" />
+                              {contact.email}
+                            </div>
+                          )}
+                          {contact.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              {contact.location}
+                            </div>
+                          )}
+                          {contactEngagement && contactEngagement.totalEvents > 0 && (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>{contactEngagement.totalEvents} event{contactEngagement.totalEvents !== 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-green-600">{contactEngagement.confirmedEvents} confirmed</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {contactEngagement && contactEngagement.lastEventDate && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Last event: {new Date(contactEngagement.lastEventDate).toLocaleDateString()}
+                          </p>
                         )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

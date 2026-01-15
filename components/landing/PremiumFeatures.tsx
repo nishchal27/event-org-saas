@@ -13,6 +13,7 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
+  MessageSquare,
 } from 'lucide-react'
 
 const premiumFeatures = [
@@ -23,6 +24,7 @@ const premiumFeatures = [
     gradient: 'from-blue-500 via-cyan-500 to-teal-500',
     stats: '6-month trends',
     color: 'blue',
+    pulse: true,
   },
   {
     icon: FileText,
@@ -31,6 +33,7 @@ const premiumFeatures = [
     gradient: 'from-purple-500 via-pink-500 to-rose-500',
     stats: 'Save time',
     color: 'purple',
+    pulse: true,
   },
   {
     icon: Download,
@@ -47,6 +50,7 @@ const premiumFeatures = [
     gradient: 'from-orange-500 via-amber-500 to-yellow-500',
     stats: 'Instant check-in',
     color: 'orange',
+    pulse: true,
   },
   {
     icon: Users,
@@ -71,6 +75,7 @@ const premiumFeatures = [
     gradient: 'from-teal-500 via-cyan-500 to-blue-500',
     stats: 'Activity insights',
     color: 'teal',
+    pulse: true,
   },
   {
     icon: Zap,
@@ -79,6 +84,15 @@ const premiumFeatures = [
     gradient: 'from-yellow-500 via-orange-500 to-red-500',
     stats: 'One-click duplicate',
     color: 'yellow',
+  },
+  {
+    icon: MessageSquare,
+    title: 'Message Templates',
+    description: 'Save WhatsApp message templates. Personalize invitations, reminders, and follow-ups with variables.',
+    gradient: 'from-violet-500 via-purple-500 to-fuchsia-500',
+    stats: 'Reusable messages',
+    color: 'violet',
+    pulse: true,
   },
 ]
 
@@ -107,30 +121,44 @@ const itemVariants = {
 export function PremiumFeatures() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-background via-primary/5 to-background py-24 sm:py-32 lg:py-40">
-      {/* Animated Background Elements */}
+      {/* Enhanced Animated Background Elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <motion.div
-          className="absolute left-1/4 top-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 blur-3xl"
+          className="absolute left-1/4 top-1/4 h-[600px] w-[600px] rounded-full bg-gradient-to-r from-blue-500/25 via-purple-500/25 to-pink-500/25 blur-3xl"
           animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 100, 0],
-            y: [0, -50, 0],
+            scale: [1, 1.3, 1],
+            x: [0, 120, 0],
+            y: [0, -60, 0],
+            rotate: [0, 180, 360],
           }}
           transition={{
-            duration: 20,
+            duration: 25,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
         />
         <motion.div
-          className="absolute right-1/4 bottom-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-r from-orange-500/20 via-yellow-500/20 to-green-500/20 blur-3xl"
+          className="absolute right-1/4 bottom-1/4 h-[600px] w-[600px] rounded-full bg-gradient-to-r from-orange-500/25 via-yellow-500/25 to-green-500/25 blur-3xl"
           animate={{
-            scale: [1, 1.3, 1],
-            x: [0, -80, 0],
-            y: [0, 60, 0],
+            scale: [1, 1.4, 1],
+            x: [0, -100, 0],
+            y: [0, 80, 0],
+            rotate: [360, 180, 0],
           }}
           transition={{
-            duration: 25,
+            duration: 30,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-violet-500/20 via-indigo-500/20 to-blue-500/20 blur-3xl"
+          animate={{
+            scale: [1, 1.5, 1],
+            rotate: [0, 360],
+          }}
+          transition={{
+            duration: 35,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
@@ -155,13 +183,32 @@ export function PremiumFeatures() {
             <span>Premium Features</span>
           </motion.div>
 
-          <h2 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            <span className="bg-gradient-to-r from-primary via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <motion.h2 
+            className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <motion.span 
+              className="block bg-gradient-to-r from-primary via-purple-600 to-pink-600 bg-clip-text text-transparent"
+              animate={{
+                backgroundPosition: ['0%', '100%', '0%'],
+              }}
+              transition={{
+                duration: 5,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              style={{
+                backgroundSize: '200% 200%',
+              }}
+            >
               Powerful Tools
-            </span>
+            </motion.span>
             <br />
             <span className="text-foreground">For Serious Organizers</span>
-          </h2>
+          </motion.h2>
           <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">
             Take your event management to the next level with advanced features designed to save time, increase engagement, and grow your community.
           </p>
@@ -173,75 +220,168 @@ export function PremiumFeatures() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-100px' }}
-          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
         >
           {premiumFeatures.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <motion.div key={feature.title} variants={itemVariants}>
-                <Card className="group relative h-full overflow-hidden border-border/50 bg-card/50 backdrop-blur-sm transition-all duration-500 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/20">
+              <motion.div 
+                key={feature.title} 
+                variants={itemVariants}
+                whileHover={{ y: -8 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <Card className="group relative h-full overflow-hidden border-border/50 bg-card/80 backdrop-blur-md transition-all duration-500 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.02]">
                   {/* Animated Gradient Background */}
                   <motion.div
-                    className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 transition-opacity duration-500 group-hover:opacity-10`}
-                    whileHover={{ scale: 1.1 }}
+                    className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 transition-opacity duration-500 group-hover:opacity-15`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ duration: 0.5 }}
+                  />
+
+                  {/* Animated Border Glow */}
+                  <motion.div
+                    className={`absolute inset-0 rounded-lg bg-gradient-to-br ${feature.gradient} opacity-0 blur-sm transition-opacity group-hover:opacity-30`}
+                    animate={feature.pulse ? {
+                      opacity: [0, 0.2, 0],
+                    } : {}}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
                   />
 
                   {/* Shimmer Effect */}
                   <motion.div
-                    className="absolute inset-0 -z-10 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute inset-0 -z-10 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
                     initial={{ x: '-100%' }}
                     whileHover={{ x: '200%' }}
-                    transition={{ duration: 1, ease: 'easeInOut' }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
                   />
 
-                  <CardContent className="relative p-6">
-                    {/* Icon with Gradient */}
-                    <motion.div
-                      className="mb-4"
-                      whileHover={{ scale: 1.1, rotate: [0, -5, 5, 0] }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <div className={`relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg`}>
-                        <Icon className="h-7 w-7" />
+                  {/* Floating Particles Effect */}
+                  {feature.pulse && (
+                    <>
+                      {[...Array(3)].map((_, i) => (
                         <motion.div
-                          className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.gradient} opacity-0 blur-xl transition-opacity group-hover:opacity-50`}
+                          key={i}
+                          className={`absolute h-1 w-1 rounded-full bg-gradient-to-br ${feature.gradient}`}
+                          style={{
+                            left: `${20 + i * 30}%`,
+                            top: `${10 + i * 20}%`,
+                          }}
                           animate={{
-                            scale: [1, 1.2, 1],
+                            y: [0, -20, 0],
+                            opacity: [0.3, 0.8, 0.3],
+                            scale: [1, 1.5, 1],
                           }}
                           transition={{
-                            duration: 2,
+                            duration: 2 + i * 0.5,
+                            repeat: Infinity,
+                            delay: i * 0.3,
+                            ease: 'easeInOut',
+                          }}
+                        />
+                      ))}
+                    </>
+                  )}
+
+                  <CardContent className="relative p-6">
+                    {/* Icon with Enhanced Gradient and Pulse */}
+                    <motion.div
+                      className="mb-4"
+                      whileHover={{ scale: 1.15, rotate: [0, -10, 10, -5, 5, 0] }}
+                      transition={{ duration: 0.6, type: 'spring' }}
+                    >
+                      <div className={`relative inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-xl shadow-primary/30`}>
+                        <Icon className="h-8 w-8 z-10 relative" />
+                        {/* Pulsing Glow Effect */}
+                        <motion.div
+                          className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feature.gradient} opacity-0 blur-xl`}
+                          animate={feature.pulse ? {
+                            opacity: [0, 0.6, 0],
+                            scale: [1, 1.3, 1],
+                          } : {
+                            opacity: 0,
+                          }}
+                          transition={{
+                            duration: 2.5,
                             repeat: Infinity,
                             ease: 'easeInOut',
+                          }}
+                        />
+                        {/* Rotating Ring */}
+                        <motion.div
+                          className={`absolute inset-0 rounded-2xl border-2 border-white/30`}
+                          animate={feature.pulse ? {
+                            rotate: 360,
+                          } : {}}
+                          transition={{
+                            duration: 8,
+                            repeat: Infinity,
+                            ease: 'linear',
                           }}
                         />
                       </div>
                     </motion.div>
 
-                    {/* Stats Badge */}
+                    {/* Stats Badge with Animation */}
                     <motion.div
-                      className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
-                      whileHover={{ scale: 1.05 }}
+                      className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm border border-primary/20"
+                      whileHover={{ scale: 1.08, x: 4 }}
+                      transition={{ type: 'spring', stiffness: 400 }}
                     >
-                      <CheckCircle2 className="h-3 w-3" />
+                      <motion.div
+                        animate={feature.pulse ? {
+                          scale: [1, 1.2, 1],
+                        } : {}}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                        }}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      </motion.div>
                       <span>{feature.stats}</span>
                     </motion.div>
 
-                    {/* Title */}
-                    <h3 className="mb-2 text-lg font-bold leading-tight">{feature.title}</h3>
+                    {/* Title with Gradient on Hover */}
+                    <motion.h3 
+                      className="mb-2 text-xl font-bold leading-tight bg-gradient-to-r from-foreground to-foreground bg-clip-text group-hover:from-primary group-hover:via-purple-600 group-hover:to-pink-600 group-hover:text-transparent transition-all duration-500"
+                      whileHover={{ x: 4 }}
+                    >
+                      {feature.title}
+                    </motion.h3>
 
                     {/* Description */}
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground/80 transition-colors">
                       {feature.description}
                     </p>
 
-                    {/* Hover Indicator */}
+                    {/* Animated Hover Indicator */}
                     <motion.div
                       className="absolute bottom-4 right-4 opacity-0 transition-opacity group-hover:opacity-100"
-                      initial={{ scale: 0 }}
-                      whileHover={{ scale: 1.2 }}
+                      initial={{ scale: 0, rotate: -180 }}
+                      whileHover={{ scale: 1.3, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
                     >
-                      <div className={`h-2 w-2 rounded-full bg-gradient-to-br ${feature.gradient}`} />
+                      <div className={`h-3 w-3 rounded-full bg-gradient-to-br ${feature.gradient} shadow-lg`} />
                     </motion.div>
+
+                    {/* Corner Accent */}
+                    <motion.div
+                      className={`absolute top-0 right-0 h-20 w-20 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-5 blur-2xl transition-opacity`}
+                      animate={feature.pulse ? {
+                        scale: [1, 1.2, 1],
+                      } : {}}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                      }}
+                    />
                   </CardContent>
                 </Card>
               </motion.div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDate, formatTime } from '@/lib/utils'
-import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy, Download, QrCode } from 'lucide-react'
+import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy, Download, QrCode, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -13,6 +13,14 @@ import { ContactSelection } from '@/components/contact-selection'
 import { useToast } from '@/hooks/use-toast'
 import { PostsTabClient } from './posts-tab-client'
 import { Sparkles } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export function EventDetailClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -39,6 +47,9 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
   )
   const [selectedContacts, setSelectedContacts] = useState<string[]>([])
   const [showContactSelection, setShowContactSelection] = useState(false)
+  const [selectedMessageTemplateId, setSelectedMessageTemplateId] = useState<string>('')
+  const [customMessage, setCustomMessage] = useState('')
+  const { data: messageTemplates } = trpc.messageTemplate.getAll.useQuery()
 
   const exportMutation = trpc.export.exportEventAttendance.useQuery(
     { eventId, format: 'csv' },
@@ -84,6 +95,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
     },
   })
 
+  const { data: selectedMessageTemplate } = trpc.messageTemplate.getById.useQuery(
+    { id: selectedMessageTemplateId },
+    { enabled: !!selectedMessageTemplateId }
+  )
+
   const handleSendInvites = () => {
     if (selectedContacts.length === 0) {
       toast({
@@ -94,9 +110,27 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
       return
     }
 
+    // Use template message if selected, otherwise use custom or default
+    let message = customMessage
+    if (selectedMessageTemplate && selectedMessageTemplate.content) {
+      // Replace template variables with event data
+      const eventUrl = `${window.location.origin}/event/${event?.publicSlug}`
+      const startDate = event ? new Date(event.eventDate).toLocaleDateString('en-IN') : ''
+      const endDate = event?.endDate ? new Date(event.endDate).toLocaleDateString('en-IN') : ''
+      const dateLabel = endDate && endDate !== startDate ? `${startDate} - ${endDate}` : startDate
+      const timeLabel = event?.endTime ? `${event.startTime} - ${event.endTime}` : event?.startTime || ''
+      
+      message = selectedMessageTemplate.content
+        .replace(/{eventTitle}/g, event?.title || '')
+        .replace(/{eventDate}/g, dateLabel)
+        .replace(/{eventTime}/g, timeLabel)
+        .replace(/{eventLocation}/g, event?.location || '')
+    }
+
     whatsappMutation.mutate({
       eventId,
       contactIds: selectedContacts,
+      message: message || undefined,
     })
   }
 
@@ -301,30 +335,47 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                         )}
                       </div>
                     )}
-                    <div className={`mb-4 grid gap-4 ${event.maxCapacity ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                      <div className="rounded-lg bg-green-50 p-4 text-center">
-                        <CheckCircle className="mx-auto h-6 w-6 text-green-600" />
-                        <p className="mt-2 text-2xl font-bold text-green-600">{confirmedCount}</p>
-                        <p className="text-sm text-gray-600">Confirmed</p>
-                      </div>
-                      {waitlistCount > 0 && (
-                        <div className="rounded-lg bg-yellow-50 p-4 text-center">
-                          <Users className="mx-auto h-6 w-6 text-yellow-600" />
-                          <p className="mt-2 text-2xl font-bold text-yellow-600">{waitlistCount}</p>
-                          <p className="text-sm text-gray-600">Waitlist</p>
+                    {(() => {
+                      const checkedInCount = event.attendees.filter((a) => a.checkedIn).length
+                      const hasCheckedIn = checkedInCount > 0
+                      const gridCols = event.maxCapacity 
+                        ? (hasCheckedIn ? 'grid-cols-5' : 'grid-cols-4')
+                        : (hasCheckedIn ? 'grid-cols-4' : 'grid-cols-3')
+                      
+                      return (
+                        <div className={`mb-4 grid gap-4 ${gridCols}`}>
+                          {hasCheckedIn && (
+                            <div className="rounded-lg bg-blue-50 p-4 text-center">
+                              <CheckCircle className="mx-auto h-6 w-6 text-blue-600" />
+                              <p className="mt-2 text-2xl font-bold text-blue-600">{checkedInCount}</p>
+                              <p className="text-sm text-gray-600">Checked In</p>
+                            </div>
+                          )}
+                          <div className="rounded-lg bg-green-50 p-4 text-center">
+                            <CheckCircle className="mx-auto h-6 w-6 text-green-600" />
+                            <p className="mt-2 text-2xl font-bold text-green-600">{confirmedCount}</p>
+                            <p className="text-sm text-gray-600">Confirmed</p>
+                          </div>
+                          {waitlistCount > 0 && (
+                            <div className="rounded-lg bg-yellow-50 p-4 text-center">
+                              <Users className="mx-auto h-6 w-6 text-yellow-600" />
+                              <p className="mt-2 text-2xl font-bold text-yellow-600">{waitlistCount}</p>
+                              <p className="text-sm text-gray-600">Waitlist</p>
+                            </div>
+                          )}
+                          <div className="rounded-lg bg-red-50 p-4 text-center">
+                            <XCircle className="mx-auto h-6 w-6 text-red-600" />
+                            <p className="mt-2 text-2xl font-bold text-red-600">{declinedCount}</p>
+                            <p className="text-sm text-gray-600">Declined</p>
+                          </div>
+                          <div className="rounded-lg bg-gray-50 p-4 text-center">
+                            <Users className="mx-auto h-6 w-6 text-gray-600" />
+                            <p className="mt-2 text-2xl font-bold text-gray-600">{pendingCount}</p>
+                            <p className="text-sm text-gray-600">Pending</p>
+                          </div>
                         </div>
-                      )}
-                      <div className="rounded-lg bg-red-50 p-4 text-center">
-                        <XCircle className="mx-auto h-6 w-6 text-red-600" />
-                        <p className="mt-2 text-2xl font-bold text-red-600">{declinedCount}</p>
-                        <p className="text-sm text-gray-600">Declined</p>
-                      </div>
-                      <div className="rounded-lg bg-gray-50 p-4 text-center">
-                        <Users className="mx-auto h-6 w-6 text-gray-600" />
-                        <p className="mt-2 text-2xl font-bold text-gray-600">{pendingCount}</p>
-                        <p className="text-sm text-gray-600">Pending</p>
-                      </div>
-                    </div>
+                      )
+                    })()}
 
                     <div className="space-y-2">
                       {event.attendees.length === 0 ? (
@@ -387,6 +438,62 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                           selectedContacts={selectedContacts}
                           onSelectionChange={setSelectedContacts}
                         />
+                        
+                        {/* Message Template Selection */}
+                        {messageTemplates && messageTemplates.length > 0 && (
+                          <div className="space-y-2">
+                            <Label>Message Template (Optional)</Label>
+                            <Select
+                              value={selectedMessageTemplateId}
+                              onValueChange={(value) => {
+                                setSelectedMessageTemplateId(value)
+                                setCustomMessage('')
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Use default message or select a template..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Default Message</SelectItem>
+                                {messageTemplates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id}>
+                                    <div className="flex items-center gap-2">
+                                      <FileText className="h-4 w-4" />
+                                      <span>{template.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        ({template.type})
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedMessageTemplate && (
+                              <div className="rounded-lg bg-muted p-3 text-sm">
+                                <p className="font-medium mb-1">Template Preview:</p>
+                                <p className="text-muted-foreground whitespace-pre-wrap">
+                                  {selectedMessageTemplate.content}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Custom Message Override */}
+                        <div className="space-y-2">
+                          <Label>Custom Message (Optional - Overrides template)</Label>
+                          <Textarea
+                            value={customMessage}
+                            onChange={(e) => setCustomMessage(e.target.value)}
+                            placeholder="Enter custom message or leave empty to use template/default..."
+                            rows={4}
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Available variables: {'{name}'}, {'{eventTitle}'}, {'{eventDate}'}, {'{eventTime}'}, {'{eventLocation}'}
+                          </p>
+                        </div>
+
                         <Button
                           onClick={handleSendInvites}
                           disabled={whatsappMutation.isLoading || selectedContacts.length === 0}

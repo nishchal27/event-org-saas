@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { CldUploadWidget } from 'next-cloudinary'
-import { Loader2 } from 'lucide-react'
+import { Loader2, MessageSquare } from 'lucide-react'
+import Link from 'next/link'
 
 export function SettingsClient() {
   const { toast } = useToast()
@@ -68,7 +69,15 @@ export function SettingsClient() {
     <div className="min-h-screen bg-gray-50">
       <div className="border-b bg-white">
         <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Settings</h1>
+            <Link href="/settings/message-templates">
+              <Button variant="outline">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Message Templates
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
