@@ -79,69 +79,80 @@ export function EventsClient() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {events.map((event) => (
-              <Card key={event.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="line-clamp-2">{event.title}</CardTitle>
-                      <CardDescription className="mt-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4" />
-                          {formatDate(event.eventDate)}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm mt-1">
-                          <Clock className="h-4 w-4" />
-                          {formatTime(event.startTime)}
-                          {event.endTime && ` - ${formatTime(event.endTime)}`}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm mt-1">
-                          <MapPin className="h-4 w-4" />
-                          <span className="line-clamp-1">{event.location}</span>
-                        </div>
-                      </CardDescription>
+            {events.map((event) => {
+              const startDateLabel = formatDate(event.eventDate)
+              const endDateLabel = event.endDate ? formatDate(event.endDate) : null
+              const dateLabel =
+                endDateLabel && endDateLabel !== startDateLabel
+                  ? `${startDateLabel} - ${endDateLabel}`
+                  : startDateLabel
+              const timeLabel = event.endTime
+                ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`
+                : formatTime(event.startTime)
+
+              return (
+                <Card key={event.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="line-clamp-2">{event.title}</CardTitle>
+                        <CardDescription className="mt-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4" />
+                            {dateLabel}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <Clock className="h-4 w-4" />
+                            {timeLabel}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <MapPin className="h-4 w-4" />
+                            <span className="line-clamp-1">{event.location}</span>
+                          </div>
+                        </CardDescription>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/events/${event.id}`)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(event.id)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Duplicate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(event.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Users className="h-4 w-4" />
+                        {event._count.attendees} attendees
+                      </div>
+                      <Link href={`/events/${event.id}`}>
+                        <Button variant="outline" size="sm">
+                          View Details
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/events/${event.id}`)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDuplicate(event.id)}>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(event.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="h-4 w-4" />
-                      {event._count.attendees} attendees
+                      </Link>
                     </div>
-                    <Link href={`/events/${event.id}`}>
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </div>

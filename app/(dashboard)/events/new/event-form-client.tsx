@@ -22,22 +22,52 @@ import { useState } from 'react'
 import { CldUploadWidget } from 'next-cloudinary'
 import { useToast } from '@/hooks/use-toast'
 
-const eventSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  imageUrl: z.string().url().optional().nullable(),
-  eventDate: z.string(),
-  startTime: z.string(),
-  endTime: z.string().optional().nullable(),
-  locationType: z.enum(['physical', 'online']),
-  location: z.string().min(1, 'Location is required'),
-  description: z.string().min(1, 'Description is required'),
-  additionalNotes: z.string().optional().nullable(),
-  audienceType: z.enum(['all', 'selected', 'public']),
-  customField1Label: z.string().optional().nullable(),
-  customField1Value: z.string().optional().nullable(),
-  customField2Label: z.string().optional().nullable(),
-  customField2Value: z.string().optional().nullable(),
-})
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+const eventSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required'),
+    imageUrl: z.string().optional().nullable(),
+    eventDate: z.string().min(1, 'Event date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    startTime: z.string().min(1, 'Start time is required'),
+    endTime: z.string().min(1, 'End time is required'),
+    locationType: z.enum(['physical', 'online']),
+    location: z.string().min(1, 'Location is required'),
+    description: z.string().min(1, 'Description is required'),
+    additionalNotes: z.string().optional().nullable(),
+    audienceType: z.enum(['all', 'selected', 'public']),
+    customField1Label: z.string().optional().nullable(),
+    customField1Value: z.string().optional().nullable(),
+    customField2Label: z.string().optional().nullable(),
+    customField2Value: z.string().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const startDate = new Date(data.eventDate)
+    const endDate = new Date(data.endDate)
+
+    if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+      if (endDate < startDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endDate'],
+          message: 'End date must be the same as or after the start date',
+        })
+      }
+
+      const isSameDay = startDate.toDateString() === endDate.toDateString()
+      if (isSameDay && timeToMinutes(data.endTime) <= timeToMinutes(data.startTime)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endTime'],
+          message: 'End time must be after the start time',
+        })
+      }
+    }
+  })
 
 type EventFormData = z.infer<typeof eventSchema>
 
@@ -67,8 +97,10 @@ export function EventFormClient() {
   })
 
   const createMutation = trpc.event.create.useMutation({
-    onSuccess: (data) => {
-      router.push(`/events/${data.id}`)
+    onSuccess: (data: any) => {
+      if (data && 'id' in data) {
+        router.push(`/events/${data.id}`)
+      }
     },
   })
 
@@ -207,6 +239,21 @@ export function EventFormClient() {
                 </div>
 
                 <div>
+                  <Label htmlFor="endDate">End Date *</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    {...register('endDate')}
+                    className="mt-1"
+                  />
+                  {errors.endDate && (
+                    <p className="mt-1 text-sm text-destructive">{errors.endDate.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
                   <Label htmlFor="startTime">Start Time *</Label>
                   <Input
                     id="startTime"
@@ -218,16 +265,19 @@ export function EventFormClient() {
                     <p className="mt-1 text-sm text-destructive">{errors.startTime.message}</p>
                   )}
                 </div>
-              </div>
 
-              <div>
-                <Label htmlFor="endTime">End Time (Optional)</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  {...register('endTime')}
-                  className="mt-1"
-                />
+                <div>
+                  <Label htmlFor="endTime">End Time *</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    {...register('endTime')}
+                    className="mt-1"
+                  />
+                  {errors.endTime && (
+                    <p className="mt-1 text-sm text-destructive">{errors.endTime.message}</p>
+                  )}
+                </div>
               </div>
 
               <div>

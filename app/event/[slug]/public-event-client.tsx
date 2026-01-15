@@ -84,6 +84,15 @@ export function PublicEventClient({ slug }: { slug: string }) {
   const fontStyle = org?.fontStyle || 'default'
   const orgLogo = org?.logo
   const orgName = org?.name || 'Organization'
+  const startDateLabel = formatDate(event.eventDate)
+  const endDateLabel = event.endDate ? formatDate(event.endDate) : null
+  const dateLabel =
+    endDateLabel && endDateLabel !== startDateLabel
+      ? `${startDateLabel} - ${endDateLabel}`
+      : startDateLabel
+  const timeLabel = event.endTime
+    ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`
+    : formatTime(event.startTime)
 
   // Font style classes
   const fontClasses = {
@@ -198,8 +207,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                         backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
                       )}
                     >
-                      {formatDate(event.eventDate)} • {formatTime(event.startTime)}
-                      {event.endTime && ` - ${formatTime(event.endTime)}`}
+                      {dateLabel} • {timeLabel}
                     </p>
                   </div>
                 </div>

@@ -66,7 +66,17 @@ export const whatsappRouter = router({
 
       // Build WhatsApp message
       const eventUrl = `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.publicSlug}`
-      const defaultMessage = `🎉 *${event.title}*\n\n📅 ${new Date(event.eventDate).toLocaleDateString('en-IN')}\n🕐 ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${eventUrl}`
+      const startDate = new Date(event.eventDate)
+      const endDate = event.endDate ? new Date(event.endDate) : null
+      const startDateLabel = startDate.toLocaleDateString('en-IN')
+      const endDateLabel = endDate ? endDate.toLocaleDateString('en-IN') : null
+      const dateLabel =
+        endDateLabel && endDateLabel !== startDateLabel
+          ? `${startDateLabel} - ${endDateLabel}`
+          : startDateLabel
+      const timeLabel = event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime
+
+      const defaultMessage = `🎉 *${event.title}*\n\n📅 ${dateLabel}\n🕐 ${timeLabel}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${eventUrl}`
 
       const message = input.message || defaultMessage
 

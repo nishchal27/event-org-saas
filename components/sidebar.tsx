@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Users, Settings, Home, CreditCard } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { UserButton } from '@clerk/nextjs'
+import { OrganizationSwitcher, UserButton } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
@@ -21,8 +21,13 @@ export function Sidebar() {
   return (
     <aside className="hidden w-64 border-r border-border bg-card md:block">
       <div className="flex h-full flex-col">
-        <div className="border-b border-border p-4">
+        <div className="border-b border-border p-4 space-y-3">
           <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
+          <OrganizationSwitcher
+            hidePersonal
+            afterSelectOrganizationUrl="/dashboard"
+            afterCreateOrganizationUrl="/dashboard"
+          />
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => {

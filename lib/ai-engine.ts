@@ -12,6 +12,7 @@ export interface EventData {
   title: string
   description: string
   eventDate: Date
+  endDate?: Date | null
   startTime: string
   endTime?: string | null
   location: string
@@ -213,18 +214,31 @@ function buildUserPrompt(
   options: GenerationOptions,
   guidelines: typeof PLATFORM_GUIDELINES[Platform]
 ): string {
-  const dateStr = new Date(event.eventDate).toLocaleDateString('en-IN', {
+  const startDate = new Date(event.eventDate)
+  const endDate = event.endDate ? new Date(event.endDate) : null
+  const startDateStr = startDate.toLocaleDateString('en-IN', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   })
+  const endDateStr = endDate
+    ? endDate.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null
+  const dateLabel =
+    endDateStr && endDateStr !== startDateStr ? `${startDateStr} - ${endDateStr}` : startDateStr
+  const timeLabel = event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime
 
   let prompt = `Create a ${options.platform} post for this event:
 
 **Event Title:** ${event.title}
 
-**Date & Time:** ${dateStr} at ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}
+**Date & Time:** ${dateLabel} at ${timeLabel}
 
 **Location:** ${event.location}${event.locationType === 'online' ? ' (Online Event)' : ''}
 
@@ -260,7 +274,13 @@ function extractHashtags(content: string): string[] {
  * Fallback template-based generation
  */
 function generateFallbackPost(event: EventData, options: GenerationOptions): GeneratedPost {
-  const dateStr = new Date(event.eventDate).toLocaleDateString('en-IN')
+  const startDate = new Date(event.eventDate)
+  const endDate = event.endDate ? new Date(event.endDate) : null
+  const startDateStr = startDate.toLocaleDateString('en-IN')
+  const endDateStr = endDate ? endDate.toLocaleDateString('en-IN') : null
+  const dateLabel =
+    endDateStr && endDateStr !== startDateStr ? `${startDateStr} - ${endDateStr}` : startDateStr
+  const timeLabel = event.endTime ? `${event.startTime} - ${event.endTime}` : event.startTime
   const guidelines = PLATFORM_GUIDELINES[options.platform]
 
   let content = ''
@@ -268,27 +288,27 @@ function generateFallbackPost(event: EventData, options: GenerationOptions): Gen
 
   switch (options.platform) {
     case 'instagram':
-      content = `🎉 ${event.title}\n\n📅 ${dateStr}\n🕐 ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register now: ${options.eventUrl}\n\n#Event #${event.title.replace(/\s+/g, '')} #Community`
+      content = `🎉 ${event.title}\n\n📅 ${dateLabel}\n🕐 ${timeLabel}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register now: ${options.eventUrl}\n\n#Event #${event.title.replace(/\s+/g, '')} #Community`
       hashtags.push('Event', event.title.replace(/\s+/g, ''), 'Community')
       break
 
     case 'facebook':
-      content = `🎉 Join us for ${event.title}!\n\n📅 Date: ${dateStr}\n🕐 Time: ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 Location: ${event.location}\n\n${event.description}\n\nRegister here: ${options.eventUrl}`
+      content = `🎉 Join us for ${event.title}!\n\n📅 Date: ${dateLabel}\n🕐 Time: ${timeLabel}\n📍 Location: ${event.location}\n\n${event.description}\n\nRegister here: ${options.eventUrl}`
       hashtags.push('Event', 'Community')
       break
 
     case 'twitter':
-      content = `🎉 ${event.title}\n\n📅 ${dateStr} at ${event.startTime}\n📍 ${event.location}\n\n${event.description.substring(0, 100)}...\n\nRegister: ${options.eventUrl}`
+      content = `🎉 ${event.title}\n\n📅 ${dateLabel} at ${timeLabel}\n📍 ${event.location}\n\n${event.description.substring(0, 100)}...\n\nRegister: ${options.eventUrl}`
       hashtags.push('Event')
       break
 
     case 'linkedin':
-      content = `We're excited to announce ${event.title}!\n\n📅 Date: ${dateStr}\n🕐 Time: ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 Location: ${event.location}\n\n${event.description}\n\nJoin us! Register here: ${options.eventUrl}`
+      content = `We're excited to announce ${event.title}!\n\n📅 Date: ${dateLabel}\n🕐 Time: ${timeLabel}\n📍 Location: ${event.location}\n\n${event.description}\n\nJoin us! Register here: ${options.eventUrl}`
       hashtags.push('Event', 'Networking', 'Professional')
       break
 
     case 'whatsapp':
-      content = `🎉 *${event.title}*\n\n📅 ${dateStr}\n🕐 ${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${options.eventUrl}`
+      content = `🎉 *${event.title}*\n\n📅 ${dateLabel}\n🕐 ${timeLabel}\n📍 ${event.location}\n\n${event.description}\n\n👉 Register: ${options.eventUrl}`
       break
   }
 

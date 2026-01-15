@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server'
 import { prisma } from './prisma'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth, currentUser, clerkClient } from '@clerk/nextjs/server'
 
 export async function createContext(opts: { req?: Request }) {
   // Get auth from Clerk - this works in App Router
@@ -72,6 +72,84 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
       if (membership) {
         organization = org
       }
+    }
+  }
+
+  // If no organization found via orgId, try syncing from Clerk
+  if (ctx.orgId && !organization) {
+    try {
+      const clerkOrg = await clerkClient.organizations.getOrganization({
+        organizationId: ctx.orgId,
+      })
+
+      if (!clerkOrg) {
+        console.warn('Organization not found in Clerk:', ctx.orgId)
+      } else {
+        const syncedOrg = await ctx.prisma.organization.upsert({
+          where: { clerkOrgId: ctx.orgId },
+          update: {
+            name: clerkOrg.name,
+            slug: clerkOrg.slug || clerkOrg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            logo: clerkOrg.imageUrl || null,
+          },
+          create: {
+            clerkOrgId: ctx.orgId,
+            name: clerkOrg.name,
+            slug: clerkOrg.slug || clerkOrg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            logo: clerkOrg.imageUrl || null,
+          },
+        })
+
+        try {
+          const membershipList = await clerkClient.organizations.getOrganizationMembershipList({
+            organizationId: ctx.orgId,
+            userId: ctx.userId,
+            limit: 1,
+          })
+
+          const clerkRoleRaw = membershipList.data?.[0]?.role || 'member'
+          const clerkRole = clerkRoleRaw.replace(/^org:/, '')
+
+          membership = await ctx.prisma.membership.upsert({
+            where: {
+              userId_organizationId: {
+                userId: dbUser.id,
+                organizationId: syncedOrg.id,
+              },
+            },
+            update: { role: clerkRole },
+            create: {
+              userId: dbUser.id,
+              organizationId: syncedOrg.id,
+              role: clerkRole,
+            },
+          })
+
+          organization = syncedOrg
+        } catch (membershipError) {
+          console.warn('Failed to get membership from Clerk, creating default:', membershipError)
+          // Create membership with default role if Clerk API fails
+          membership = await ctx.prisma.membership.upsert({
+            where: {
+              userId_organizationId: {
+                userId: dbUser.id,
+                organizationId: syncedOrg.id,
+              },
+            },
+            update: {},
+            create: {
+              userId: dbUser.id,
+              organizationId: syncedOrg.id,
+              role: 'member',
+            },
+          })
+          organization = syncedOrg
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to sync organization from Clerk:', error)
+      // Don't throw - allow the flow to continue with null organization
+      // The mutation will handle the missing organization error
     }
   }
 

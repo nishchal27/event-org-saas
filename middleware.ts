@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/clerk/test',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/create-organization(.*)', // Allow catch-all route for CreateOrganization component
 ])
 
 export default clerkMiddleware(async (auth, req) => {

@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'organizationMembership.created': {
-        const { id, organization_id, public_user_data } = evt.data
+        const { id, organization_id, public_user_data, role } = evt.data
         const clerkUserId = public_user_data?.user_id
 
         console.log('✅ Processing organizationMembership.created:', { id, organization_id, clerkUserId })
@@ -333,7 +333,7 @@ export async function POST(req: NextRequest) {
               create: {
                 userId: user.id,
                 organizationId: organization.id,
-                role: 'admin', // Default to admin for now
+                role: (role || 'member').replace(/^org:/, ''),
               },
             })
             console.log('✅ Membership created:', membership.id)
@@ -345,11 +345,56 @@ export async function POST(req: NextRequest) {
         break
       }
 
-      case 'organizationMembership.updated':
+      case 'organizationMembership.updated': {
+        const { organization_id, public_user_data, role } = evt.data
+        const clerkUserId = public_user_data?.user_id
+
+        if (clerkUserId && organization_id) {
+          const user = await prisma.user.findUnique({
+            where: { clerkId: clerkUserId },
+          })
+          const organization = await prisma.organization.findUnique({
+            where: { clerkOrgId: organization_id },
+          })
+
+          if (user && organization) {
+            await prisma.membership.updateMany({
+              where: {
+                userId: user.id,
+                organizationId: organization.id,
+              },
+              data: {
+                role: (role || 'member').replace(/^org:/, ''),
+              },
+            })
+          }
+        }
+
+        break
+      }
+
       case 'organizationMembership.deleted': {
-        // These events can be used for future features like role-based access
-        // For now, we just log them
-        console.log(`Organization membership ${eventType}:`, evt.data)
+        const { organization_id, public_user_data } = evt.data
+        const clerkUserId = public_user_data?.user_id
+
+        if (clerkUserId && organization_id) {
+          const user = await prisma.user.findUnique({
+            where: { clerkId: clerkUserId },
+          })
+          const organization = await prisma.organization.findUnique({
+            where: { clerkOrgId: organization_id },
+          })
+
+          if (user && organization) {
+            await prisma.membership.deleteMany({
+              where: {
+                userId: user.id,
+                organizationId: organization.id,
+              },
+            })
+          }
+        }
+
         break
       }
 

@@ -103,6 +103,15 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
   const confirmedCount = event.attendees.filter((a) => a.status === 'confirmed').length
   const declinedCount = event.attendees.filter((a) => a.status === 'declined').length
   const pendingCount = event.attendees.filter((a) => a.status === 'pending').length
+  const startDateLabel = formatDate(event.eventDate)
+  const endDateLabel = event.endDate ? formatDate(event.endDate) : null
+  const dateLabel =
+    endDateLabel && endDateLabel !== startDateLabel
+      ? `${startDateLabel} - ${endDateLabel}`
+      : startDateLabel
+  const timeLabel = event.endTime
+    ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`
+    : formatTime(event.startTime)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -165,8 +174,7 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                         <div>
                           <p className="font-medium">Date & Time</p>
                           <p className="text-sm text-gray-600">
-                            {formatDate(event.eventDate)} • {formatTime(event.startTime)}
-                            {event.endTime && ` - ${formatTime(event.endTime)}`}
+                            {dateLabel} • {timeLabel}
                           </p>
                         </div>
                       </div>

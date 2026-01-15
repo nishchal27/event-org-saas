@@ -1,6 +1,7 @@
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { clerkClient } from '@clerk/nextjs/server'
 
 const createOrganizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(100),
@@ -79,51 +80,37 @@ export const organizationRouter = router({
       }
 
       try {
-        // Generate a slug-safe version
         const slug = input.slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '')
 
-        // Create organization in Clerk using API
-        const clerkApiKey = process.env.CLERK_SECRET_KEY
-        if (!clerkApiKey) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Clerk API key not configured',
-          })
-        }
+        const clerkOrg = await clerkClient.organizations.createOrganization({
+          name: input.name,
+          slug,
+          createdBy: ctx.user.clerkId,
+        })
 
-        // For now, create organization directly in our DB
-        // The organization will be synced with Clerk when:
-        // 1. User creates it manually in Clerk Dashboard, OR
-        // 2. We implement Clerk's organization creation UI component
-        // The webhook will handle the sync when organization.created fires
-        
-        // Generate a temporary Clerk org ID - this will be replaced by webhook
-        // when the org is actually created in Clerk
-        const tempClerkOrgId = `pending_${Date.now()}_${Math.random().toString(36).substring(7)}`
-        
-        console.log('📝 Creating organization in DB. Clerk sync will happen via webhook when org is created in Clerk.')
-
-        // Create organization in DB with temporary Clerk ID
-        // This will be updated by webhook when org is created in Clerk
-        const organization = await ctx.prisma.organization.create({
-          data: {
-            clerkOrgId: tempClerkOrgId,
-            name: input.name,
-            slug: slug,
+        const organization = await ctx.prisma.organization.upsert({
+          where: { clerkOrgId: clerkOrg.id },
+          update: {
+            name: clerkOrg.name,
+            slug: clerkOrg.slug || slug,
+            logo: clerkOrg.imageUrl || null,
+          },
+          create: {
+            clerkOrgId: clerkOrg.id,
+            name: clerkOrg.name,
+            slug: clerkOrg.slug || slug,
+            logo: clerkOrg.imageUrl || null,
           },
         })
-        
-        console.log('✅ Organization created in DB:', organization.id)
 
-        // Create membership
-        const membership = await ctx.prisma.membership.upsert({
+        await ctx.prisma.membership.upsert({
           where: {
             userId_organizationId: {
               userId: ctx.user.id,
               organizationId: organization.id,
             },
           },
-          update: {},
+          update: { role: 'admin' },
           create: {
             userId: ctx.user.id,
             organizationId: organization.id,
@@ -131,7 +118,6 @@ export const organizationRouter = router({
           },
         })
 
-        // Create free subscription if it doesn't exist
         await ctx.prisma.subscription.upsert({
           where: { organizationId: organization.id },
           update: {},
@@ -142,7 +128,6 @@ export const organizationRouter = router({
           },
         })
 
-        // Initialize usage for current month
         const now = new Date()
         await ctx.prisma.usage.upsert({
           where: {

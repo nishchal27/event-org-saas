@@ -4,29 +4,62 @@ import { TRPCError } from '@trpc/server'
 import { generateSlug } from '@/lib/utils'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 
-const eventSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  imageUrl: z.string().url().optional().nullable(),
-  eventDate: z.string(),
-  startTime: z.string(),
-  endTime: z.string().optional().nullable(),
-  locationType: z.enum(['physical', 'online']),
-  location: z.string().min(1, 'Location is required'),
-  description: z.string().min(1, 'Description is required'),
-  additionalNotes: z.string().optional().nullable(),
-  audienceType: z.enum(['all', 'selected', 'public']),
-  customField1Label: z.string().optional().nullable(),
-  customField1Value: z.string().optional().nullable(),
-  customField2Label: z.string().optional().nullable(),
-  customField2Value: z.string().optional().nullable(),
-})
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+const eventSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required'),
+    imageUrl: z.string().optional().nullable(),
+    eventDate: z.string().min(1, 'Event date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    startTime: z.string().min(1, 'Start time is required'),
+    endTime: z.string().min(1, 'End time is required'),
+    locationType: z.enum(['physical', 'online']),
+    location: z.string().min(1, 'Location is required'),
+    description: z.string().min(1, 'Description is required'),
+    additionalNotes: z.string().optional().nullable(),
+    audienceType: z.enum(['all', 'selected', 'public']),
+    customField1Label: z.string().optional().nullable(),
+    customField1Value: z.string().optional().nullable(),
+    customField2Label: z.string().optional().nullable(),
+    customField2Value: z.string().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const startDate = new Date(data.eventDate)
+    const endDate = new Date(data.endDate)
+
+    if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+      if (endDate < startDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endDate'],
+          message: 'End date must be the same as or after the start date',
+        })
+      }
+
+      const isSameDay = startDate.toDateString() === endDate.toDateString()
+      if (isSameDay && timeToMinutes(data.endTime) <= timeToMinutes(data.startTime)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['endTime'],
+          message: 'End time must be after the start time',
+        })
+      }
+    }
+  })
 
 export const eventRouter = router({
   create: protectedProcedure
     .input(eventSchema)
     .mutation(async ({ ctx, input }) => {
       if (!ctx.organization) {
-        throw new TRPCError({ code: 'UNAUTHORIZED' })
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'No organization found. Please create or select an organization first.',
+        })
       }
 
       // Check usage limits
@@ -57,49 +90,110 @@ export const eventRouter = router({
         })
       }
 
-      const event = await ctx.prisma.event.create({
-        data: {
-          organizationId: ctx.organization.id,
-          title: input.title,
-          imageUrl: input.imageUrl,
-          eventDate: new Date(input.eventDate),
-          startTime: input.startTime,
-          endTime: input.endTime,
-          locationType: input.locationType,
-          location: input.location,
-          description: input.description,
-          additionalNotes: input.additionalNotes,
-          audienceType: input.audienceType,
-          isPublic: input.audienceType === 'public',
-          publicSlug: generateSlug(),
-          customField1Label: input.customField1Label,
-          customField1Value: input.customField1Value,
-          customField2Label: input.customField2Label,
-          customField2Value: input.customField2Value,
-        },
-      })
+      // Parse dates safely
+      const eventDate = new Date(input.eventDate)
+      const endDate = new Date(input.endDate)
+      
+      if (isNaN(eventDate.getTime())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid event date format',
+        })
+      }
+      
+      if (isNaN(endDate.getTime())) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid end date format',
+        })
+      }
 
-      // Update usage
-      await ctx.prisma.usage.upsert({
-        where: {
-          organizationId_month_year: {
+      try {
+        const event = await ctx.prisma.event.create({
+          data: {
+            organizationId: ctx.organization.id,
+            title: input.title,
+            imageUrl:
+              input.imageUrl && input.imageUrl !== '' && input.imageUrl.startsWith('http')
+                ? input.imageUrl
+                : null,
+            eventDate: eventDate,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            endDate: endDate,
+            locationType: input.locationType,
+            location: input.location,
+            description: input.description,
+            additionalNotes: input.additionalNotes ?? null,
+            audienceType: input.audienceType,
+            isPublic: input.audienceType === 'public',
+            publicSlug: generateSlug(),
+            customField1Label: input.customField1Label ?? null,
+            customField1Value: input.customField1Value ?? null,
+            customField2Label: input.customField2Label ?? null,
+            customField2Value: input.customField2Value ?? null,
+          },
+        })
+
+        // Update usage
+        await ctx.prisma.usage.upsert({
+          where: {
+            organizationId_month_year: {
+              organizationId: ctx.organization.id,
+              month: now.getMonth() + 1,
+              year: now.getFullYear(),
+            },
+          },
+          update: {
+            eventsCreated: { increment: 1 },
+          },
+          create: {
             organizationId: ctx.organization.id,
             month: now.getMonth() + 1,
             year: now.getFullYear(),
+            eventsCreated: 1,
           },
-        },
-        update: {
-          eventsCreated: { increment: 1 },
-        },
-        create: {
-          organizationId: ctx.organization.id,
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
-          eventsCreated: 1,
-        },
-      })
+        })
 
-      return event
+        return event
+      } catch (error: any) {
+        console.error('❌ Error creating event:', error)
+        console.error('Error name:', error?.name)
+        console.error('Error code:', error?.code)
+        console.error('Error message:', error?.message)
+        console.error('Error stack:', error?.stack)
+        console.error('Input data:', JSON.stringify(input, null, 2))
+        console.error('Organization ID:', ctx.organization?.id)
+        
+        // Check if it's a Prisma validation error
+        if (error?.code === 'P2002') {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'An event with this slug already exists. Please try again.',
+          })
+        }
+        
+        // Check for Prisma validation errors (missing required fields)
+        if (error?.code === 'P2003' || error?.message?.includes('Argument') || error?.message?.includes('missing')) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Database error: ${error.message || 'Invalid data provided'}`,
+            cause: error,
+          })
+        }
+        
+        // Re-throw TRPC errors as-is
+        if (error instanceof TRPCError) {
+          throw error
+        }
+        
+        // Wrap other errors
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: error?.message || 'Failed to create event. Please check server logs for details.',
+          cause: error,
+        })
+      }
     }),
 
   getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -194,7 +288,50 @@ export const eventRouter = router({
     .input(
       z.object({
         id: z.string(),
-        data: eventSchema.partial(),
+        data: z
+          .object({
+            title: z.string().min(1, 'Title is required').optional(),
+            imageUrl: z.string().optional().nullable(),
+            eventDate: z.string().min(1, 'Event date is required').optional(),
+            endDate: z.string().min(1, 'End date is required').optional(),
+            startTime: z.string().min(1, 'Start time is required').optional(),
+            endTime: z.string().min(1, 'End time is required').optional(),
+            locationType: z.enum(['physical', 'online']).optional(),
+            location: z.string().min(1, 'Location is required').optional(),
+            description: z.string().min(1, 'Description is required').optional(),
+            additionalNotes: z.string().optional().nullable(),
+            audienceType: z.enum(['all', 'selected', 'public']).optional(),
+            customField1Label: z.string().optional().nullable(),
+            customField1Value: z.string().optional().nullable(),
+            customField2Label: z.string().optional().nullable(),
+            customField2Value: z.string().optional().nullable(),
+          })
+          .superRefine((data, ctx) => {
+            // Only validate dates if both are provided
+            if (data.eventDate && data.endDate) {
+              const startDate = new Date(data.eventDate)
+              const endDate = new Date(data.endDate)
+
+              if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+                if (endDate < startDate) {
+                  ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['endDate'],
+                    message: 'End date must be the same as or after the start date',
+                  })
+                }
+
+                const isSameDay = startDate.toDateString() === endDate.toDateString()
+                if (isSameDay && data.startTime && data.endTime && timeToMinutes(data.endTime) <= timeToMinutes(data.startTime)) {
+                  ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['endTime'],
+                    message: 'End time must be after the start time',
+                  })
+                }
+              }
+            }
+          }),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -213,12 +350,29 @@ export const eventRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND' })
       }
 
+      const updateData: any = {}
+      if (input.data.title !== undefined) updateData.title = input.data.title
+      if (input.data.imageUrl !== undefined) updateData.imageUrl = input.data.imageUrl || null
+      if (input.data.eventDate !== undefined) updateData.eventDate = new Date(input.data.eventDate)
+      if (input.data.endDate !== undefined) updateData.endDate = input.data.endDate ? new Date(input.data.endDate) : null
+      if (input.data.startTime !== undefined) updateData.startTime = input.data.startTime
+      if (input.data.endTime !== undefined) updateData.endTime = input.data.endTime || null
+      if (input.data.locationType !== undefined) updateData.locationType = input.data.locationType
+      if (input.data.location !== undefined) updateData.location = input.data.location
+      if (input.data.description !== undefined) updateData.description = input.data.description
+      if (input.data.additionalNotes !== undefined) updateData.additionalNotes = input.data.additionalNotes || null
+      if (input.data.audienceType !== undefined) {
+        updateData.audienceType = input.data.audienceType
+        updateData.isPublic = input.data.audienceType === 'public'
+      }
+      if (input.data.customField1Label !== undefined) updateData.customField1Label = input.data.customField1Label || null
+      if (input.data.customField1Value !== undefined) updateData.customField1Value = input.data.customField1Value || null
+      if (input.data.customField2Label !== undefined) updateData.customField2Label = input.data.customField2Label || null
+      if (input.data.customField2Value !== undefined) updateData.customField2Value = input.data.customField2Value || null
+
       return ctx.prisma.event.update({
         where: { id: input.id },
-        data: {
-          ...input.data,
-          eventDate: input.data.eventDate ? new Date(input.data.eventDate) : undefined,
-        },
+        data: updateData,
       })
     }),
 
@@ -274,6 +428,7 @@ export const eventRouter = router({
           title: `${original.title} (Copy)`,
           imageUrl: original.imageUrl,
           eventDate: original.eventDate,
+          endDate: original.endDate,
           startTime: original.startTime,
           endTime: original.endTime,
           locationType: original.locationType,
