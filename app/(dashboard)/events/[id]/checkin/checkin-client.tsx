@@ -17,7 +17,6 @@ export function CheckInClient({ eventId }: { eventId: string }) {
   const { toast } = useToast()
   const utils = trpc.useUtils()
   const { data: event, isLoading } = trpc.event.getById.useQuery({ id: eventId })
-  const { data: attendees } = trpc.attendee.getByEvent.useQuery({ eventId })
   const checkInMutation = trpc.attendee.checkIn.useMutation()
   const [searchPhone, setSearchPhone] = useState('')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
@@ -33,8 +32,8 @@ export function CheckInClient({ eventId }: { eventId: string }) {
         title: 'Success',
         description: 'Attendee checked in successfully',
       })
-      // Invalidate queries to refresh
-      utils.attendee.getByEvent.invalidate({ eventId })
+      // Invalidate event query to refresh attendees
+      utils.event.getById.invalidate({ id: eventId })
       setSelectedAttendeeId(null)
     } catch (error: any) {
       toast({
@@ -46,13 +45,14 @@ export function CheckInClient({ eventId }: { eventId: string }) {
     }
   }
 
-  const filteredAttendees = attendees?.filter((attendee) =>
+  const attendees = event?.attendees || []
+  const filteredAttendees = attendees.filter((attendee) =>
     attendee.phone.includes(searchPhone) ||
     attendee.name.toLowerCase().includes(searchPhone.toLowerCase())
-  ) || []
+  )
 
-  const checkedInCount = attendees?.filter((a) => a.checkedIn).length || 0
-  const totalAttendees = attendees?.length || 0
+  const checkedInCount = attendees.filter((a) => a.checkedIn).length
+  const totalAttendees = attendees.length
 
   if (isLoading) {
     return (

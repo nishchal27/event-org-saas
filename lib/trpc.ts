@@ -101,13 +101,17 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
         })
 
         try {
+          // Get membership list and filter for current user
           const membershipList = await clerkClient.organizations.getOrganizationMembershipList({
             organizationId: ctx.orgId,
-            userId: ctx.userId,
-            limit: 1,
+            limit: 100, // Get enough to find the user
           })
 
-          const clerkRoleRaw = membershipList.data?.[0]?.role || 'member'
+          // Find the membership for the current user
+          const userMembership = membershipList.data?.find(
+            (m) => m.publicUserData?.userId === ctx.userId
+          )
+          const clerkRoleRaw = userMembership?.role || 'member'
           const clerkRole = clerkRoleRaw.replace(/^org:/, '')
 
           membership = await ctx.prisma.membership.upsert({

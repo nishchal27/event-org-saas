@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { PostsTabClient } from './posts-tab-client'
 import { Sparkles } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,

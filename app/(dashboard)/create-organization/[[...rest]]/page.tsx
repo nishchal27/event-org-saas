@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 export default function CreateOrganizationPage() {
   const router = useRouter()
-  const { organizationList, isLoaded } = useOrganizationList({
+  const { userMemberships, isLoaded } = useOrganizationList({
     userMemberships: {
       infinite: true,
     },
@@ -14,10 +14,10 @@ export default function CreateOrganizationPage() {
 
   useEffect(() => {
     // If user already has organizations and is loaded, redirect to dashboard
-    if (isLoaded && organizationList && organizationList.length > 0) {
+    if (isLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0) {
       router.push('/dashboard')
     }
-  }, [isLoaded, organizationList, router])
+  }, [isLoaded, userMemberships, router])
 
   // Show loading while checking organization status
   if (!isLoaded) {
@@ -32,7 +32,7 @@ export default function CreateOrganizationPage() {
   }
 
   // If user already has organizations, don't show create form (redirect will happen)
-  if (organizationList && organizationList.length > 0) {
+  if (userMemberships && userMemberships.data && userMemberships.data.length > 0) {
     return null
   }
 
