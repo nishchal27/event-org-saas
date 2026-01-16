@@ -343,9 +343,11 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         scannerRef.current.stop().catch(() => {
           // Ignore errors during cleanup
         })
-        scannerRef.current.clear().catch(() => {
+        try {
+          scannerRef.current.clear()
+        } catch (err) {
           // Ignore errors during cleanup
-        })
+        }
         scannerRef.current = null
       }
       
