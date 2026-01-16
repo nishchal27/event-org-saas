@@ -42,6 +42,7 @@ export const attendeeRouter = router({
         data: {
           checkedIn: true,
           checkedInAt: new Date(),
+          checkInMethod: 'manual',
         },
       })
     }),
@@ -50,31 +51,97 @@ export const attendeeRouter = router({
     .input(
       z.object({
         qrCode: z.string(),
-        phone: z.string(),
+        phone: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const event = await ctx.prisma.event.findUnique({
+      // First try to find by attendee QR code (new method)
+      let attendee = await ctx.prisma.attendee.findUnique({
         where: {
-          qrCode: input.qrCode,
+          attendeeQrCode: input.qrCode,
+        },
+        include: {
+          event: true,
         },
       })
 
-      if (!event) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' })
+      // If not found, try event QR code (fallback method)
+      if (!attendee) {
+        const event = await ctx.prisma.event.findUnique({
+          where: {
+            qrCode: input.qrCode,
+          },
+        })
+
+        if (!event) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
+        }
+
+        if (!input.phone) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Phone number required for event QR check-in' })
+        }
+
+        attendee = await ctx.prisma.attendee.findUnique({
+          where: {
+            eventId_phone: {
+              eventId: event.id,
+              phone: input.phone,
+            },
+          },
+          include: {
+            event: true,
+          },
+        })
+
+        if (!attendee) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Attendee not found for this event' })
+        }
+      }
+
+      if (attendee.checkedIn) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already checked in' })
+      }
+
+      // Determine check-in method
+      const checkInMethod = attendee.attendeeQrCode === input.qrCode ? 'qr_scan' : 'event_qr'
+
+      return ctx.prisma.attendee.update({
+        where: { id: attendee.id },
+        data: {
+          checkedIn: true,
+          checkedInAt: new Date(),
+          checkInMethod: checkInMethod,
+        },
+      })
+    }),
+
+  checkInByAttendeeQR: protectedProcedure
+    .input(
+      z.object({
+        attendeeQrCode: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
       const attendee = await ctx.prisma.attendee.findUnique({
         where: {
-          eventId_phone: {
-            eventId: event.id,
-            phone: input.phone,
-          },
+          attendeeQrCode: input.attendeeQrCode,
+        },
+        include: {
+          event: true,
         },
       })
 
       if (!attendee) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Attendee not found for this event' })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
+      }
+
+      // Verify attendee belongs to organization's event
+      if (attendee.event.organizationId !== ctx.organization.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'This QR code is not for your organization' })
       }
 
       if (attendee.checkedIn) {
@@ -86,6 +153,7 @@ export const attendeeRouter = router({
         data: {
           checkedIn: true,
           checkedInAt: new Date(),
+          checkInMethod: 'qr_scan',
         },
       })
     }),
@@ -161,6 +229,28 @@ export const attendeeRouter = router({
           }
         }
 
+        // Generate QR code if attendee doesn't have one
+        let attendeeQrCode = existingAttendee.attendeeQrCode
+        if (!attendeeQrCode) {
+          const generateAttendeeQrCode = () => {
+            const timestamp = Date.now().toString(36)
+            const random = Math.random().toString(36).substring(2, 9)
+            return `att-${timestamp}-${random}`
+          }
+
+          attendeeQrCode = generateAttendeeQrCode()
+          // Ensure uniqueness
+          let existing = await ctx.prisma.attendee.findUnique({
+            where: { attendeeQrCode },
+          })
+          while (existing) {
+            attendeeQrCode = generateAttendeeQrCode()
+            existing = await ctx.prisma.attendee.findUnique({
+              where: { attendeeQrCode },
+            })
+          }
+        }
+
         // Update existing attendee
         return ctx.prisma.attendee.update({
           where: { id: existingAttendee.id },
@@ -169,6 +259,7 @@ export const attendeeRouter = router({
             email: input.email,
             status: input.status,
             isWaitlist: isWaitlist,
+            attendeeQrCode: attendeeQrCode,
           },
         })
       }
@@ -197,6 +288,25 @@ export const attendeeRouter = router({
         },
       })
 
+      // Generate unique QR code for attendee
+      const generateAttendeeQrCode = () => {
+        const timestamp = Date.now().toString(36)
+        const random = Math.random().toString(36).substring(2, 9)
+        return `att-${timestamp}-${random}`
+      }
+
+      let attendeeQrCode = generateAttendeeQrCode()
+      // Ensure uniqueness
+      let existing = await ctx.prisma.attendee.findUnique({
+        where: { attendeeQrCode },
+      })
+      while (existing) {
+        attendeeQrCode = generateAttendeeQrCode()
+        existing = await ctx.prisma.attendee.findUnique({
+          where: { attendeeQrCode },
+        })
+      }
+
       // Create new attendee
       return ctx.prisma.attendee.create({
         data: {
@@ -207,6 +317,7 @@ export const attendeeRouter = router({
           email: input.email,
           status: input.status,
           isWaitlist: isWaitlist,
+          attendeeQrCode: attendeeQrCode,
         },
       })
     }),

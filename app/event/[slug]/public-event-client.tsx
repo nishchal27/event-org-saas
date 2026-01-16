@@ -10,6 +10,7 @@ import { Calendar, MapPin, Clock, CheckCircle, XCircle, HelpCircle } from 'lucid
 import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { AttendeeQRDisplay } from '@/components/attendee-qr-display'
 
 export function PublicEventClient({ slug }: { slug: string }) {
   const { toast } = useToast()
@@ -19,10 +20,17 @@ export function PublicEventClient({ slug }: { slug: string }) {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'confirmed' | 'declined' | 'maybe' | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [registeredAttendee, setRegisteredAttendee] = useState<{ qrCode: string; name: string } | null>(null)
 
   const registerMutation = trpc.attendee.register.useMutation({
     onSuccess: (data) => {
       setSubmitted(true)
+      if (data.attendeeQrCode) {
+        setRegisteredAttendee({
+          qrCode: data.attendeeQrCode,
+          name: name,
+        })
+      }
       const message = data.isWaitlist 
         ? 'You\'ve been added to the waitlist. We\'ll notify you if a spot opens up!'
         : 'Your attendance has been confirmed!'
@@ -489,6 +497,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                     Confirm Attendance
                   </Button>
                 </form>
+              ) : registeredAttendee && registeredAttendee.qrCode ? (
+                <div className="space-y-4">
+                  <AttendeeQRDisplay
+                    attendeeQrCode={registeredAttendee.qrCode}
+                    attendeeName={registeredAttendee.name}
+                    eventTitle={event.title}
+                  />
+                </div>
               ) : (
                 <div
                   className="rounded-lg p-6 text-center"

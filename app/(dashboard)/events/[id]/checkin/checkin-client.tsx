@@ -4,7 +4,7 @@ import { trpc } from '@/lib/trpc-client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { QRCodeDisplay } from '@/components/qr-code-display'
-import { ArrowLeft, Users, CheckCircle2, Clock } from 'lucide-react'
+import { ArrowLeft, Users, CheckCircle2, Clock, ScanLine, QrCode as QrCodeIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -110,13 +110,52 @@ export function CheckInClient({ eventId }: { eventId: string }) {
       </div>
 
       <div className="container mx-auto px-4 py-8">
+        {/* Quick Actions */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link href={`/events/${eventId}/scan`}>
+            <Card className="cursor-pointer hover:border-primary transition-colors">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                    <ScanLine className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold">Scan Attendee QR</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Use camera to scan attendee QR codes
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/20">
+                  <QrCodeIcon className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">Event QR Code</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Display for self check-in (fallback)
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* QR Code Section */}
+          {/* Event QR Code Section (Fallback) */}
           <Card>
             <CardHeader>
-              <CardTitle>QR Code Check-in</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <QrCodeIcon className="h-5 w-5" />
+                Event QR Code (Fallback)
+              </CardTitle>
               <CardDescription>
-                Display this QR code at your event. Attendees can scan it to check in.
+                Display this QR code for attendees who don't have their personal QR. They can scan and enter phone number.
               </CardDescription>
             </CardHeader>
             <CardContent>

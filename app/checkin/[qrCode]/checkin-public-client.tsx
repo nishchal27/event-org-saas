@@ -56,7 +56,7 @@ export function CheckInPublicClient({ qrCode }: { qrCode: string }) {
 
     checkInMutation.mutate({
       qrCode,
-      phone: phone.trim(),
+      phone: phone.trim() || undefined,
     })
   }
 

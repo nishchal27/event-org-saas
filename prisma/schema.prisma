@@ -20,6 +20,8 @@ model Attendee {
   checkedInAt    DateTime?
   whatsappSent   Boolean   @default(false)
   whatsappSentAt DateTime?
+  attendeeQrCode String?   @unique
+  checkInMethod  String?   // 'qr_scan', 'manual', 'event_qr', 'self_qr'
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   contact        Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
@@ -28,6 +30,7 @@ model Attendee {
   @@unique([eventId, phone], name: "eventId_phone")
   @@index([eventId])
   @@index([contactId])
+  @@index([attendeeQrCode])
   @@map("attendees")
 }
 

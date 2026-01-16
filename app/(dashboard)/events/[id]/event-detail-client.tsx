@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDate, formatTime } from '@/lib/utils'
-import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy, Download, QrCode, FileText } from 'lucide-react'
+import { Calendar, MapPin, Clock, Users, CheckCircle, XCircle, MessageSquare, Eye, Share2, Copy, Download, QrCode, FileText, ScanLine, PieChart } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { motion } from 'framer-motion'
 
 export function EventDetailClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -172,7 +173,10 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
   const declinedCount = event.attendees.filter((a) => a.status === 'declined').length
   const pendingCount = event.attendees.filter((a) => a.status === 'pending').length
   const checkedInCount = event.attendees.filter((a) => a.checkedIn).length
-  const capacityInfo = event.maxCapacity 
+  const qrScannedCount = event.attendees.filter((a) => a.checkInMethod === 'qr_scan').length
+  const manualCheckInCount = event.attendees.filter((a) => a.checkInMethod === 'manual').length
+  const eventQrCheckInCount = event.attendees.filter((a) => a.checkInMethod === 'event_qr').length
+  const capacityInfo = event.maxCapacity
     ? `${confirmedCount} / ${event.maxCapacity} spots filled`
     : null
   const startDateLabel = formatDate(event.eventDate)
@@ -212,12 +216,20 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                 Export
               </Button>
               {event.qrCode && (
-                <Link href={`/events/${eventId}/checkin`}>
-                  <Button variant="outline">
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Check-in
-                  </Button>
-                </Link>
+                <>
+                  <Link href={`/events/${eventId}/scan`}>
+                    <Button>
+                      <ScanLine className="mr-2 h-4 w-4" />
+                      Scan QR
+                    </Button>
+                  </Link>
+                  <Link href={`/events/${eventId}/checkin`}>
+                    <Button variant="outline">
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Check-in
+                    </Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -350,6 +362,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                               <CheckCircle className="mx-auto h-6 w-6 text-blue-600" />
                               <p className="mt-2 text-2xl font-bold text-blue-600">{checkedInCount}</p>
                               <p className="text-sm text-gray-600">Checked In</p>
+                              {qrScannedCount > 0 && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                  {qrScannedCount} via QR
+                                </p>
+                              )}
                             </div>
                           )}
                           <div className="rounded-lg bg-green-50 p-4 text-center">
@@ -378,6 +395,86 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                       )
                     })()}
 
+                    {/* Check-in Method Breakdown */}
+                    {checkedInCount > 0 && (
+                      <div className="mb-4 rounded-lg border bg-gradient-to-br from-primary/5 to-background p-4">
+                        <div className="mb-3 flex items-center gap-2">
+                          <PieChart className="h-4 w-4 text-primary" />
+                          <h4 className="text-sm font-semibold text-foreground">Check-in Methods Breakdown</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {qrScannedCount > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="rounded-lg bg-primary/10 p-3 text-center border border-primary/20"
+                            >
+                              <QrCode className="mx-auto h-5 w-5 text-primary mb-1" />
+                              <p className="text-lg font-bold text-primary">{qrScannedCount}</p>
+                              <p className="text-xs text-muted-foreground">QR Scan</p>
+                              <p className="text-xs text-primary/70 mt-1">
+                                {Math.round((qrScannedCount / checkedInCount) * 100)}%
+                              </p>
+                            </motion.div>
+                          )}
+                          {manualCheckInCount > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.1 }}
+                              className="rounded-lg bg-purple-50 p-3 text-center border border-purple-200"
+                            >
+                              <Users className="mx-auto h-5 w-5 text-purple-600 mb-1" />
+                              <p className="text-lg font-bold text-purple-600">{manualCheckInCount}</p>
+                              <p className="text-xs text-muted-foreground">Manual</p>
+                              <p className="text-xs text-purple-600/70 mt-1">
+                                {Math.round((manualCheckInCount / checkedInCount) * 100)}%
+                              </p>
+                            </motion.div>
+                          )}
+                          {eventQrCheckInCount > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.2 }}
+                              className="rounded-lg bg-orange-50 p-3 text-center border border-orange-200"
+                            >
+                              <QrCode className="mx-auto h-5 w-5 text-orange-600 mb-1" />
+                              <p className="text-lg font-bold text-orange-600">{eventQrCheckInCount}</p>
+                              <p className="text-xs text-muted-foreground">Event QR</p>
+                              <p className="text-xs text-orange-600/70 mt-1">
+                                {Math.round((eventQrCheckInCount / checkedInCount) * 100)}%
+                              </p>
+                            </motion.div>
+                          )}
+                          {checkedInCount - qrScannedCount - manualCheckInCount - eventQrCheckInCount > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.3 }}
+                              className="rounded-lg bg-gray-50 p-3 text-center border border-gray-200"
+                            >
+                              <CheckCircle className="mx-auto h-5 w-5 text-gray-600 mb-1" />
+                              <p className="text-lg font-bold text-gray-600">
+                                {checkedInCount - qrScannedCount - manualCheckInCount - eventQrCheckInCount}
+                              </p>
+                              <p className="text-xs text-muted-foreground">Other</p>
+                              <p className="text-xs text-gray-600/70 mt-1">
+                                {Math.round(((checkedInCount - qrScannedCount - manualCheckInCount - eventQrCheckInCount) / checkedInCount) * 100)}%
+                              </p>
+                            </motion.div>
+                          )}
+                        </div>
+                        {qrScannedCount > 0 && (
+                          <div className="mt-3 rounded-lg bg-green-50 p-2 text-center border border-green-200">
+                            <p className="text-xs font-medium text-green-700">
+                              ✨ {qrScannedCount} attendee{qrScannedCount !== 1 ? 's' : ''} used fast QR scan check-in!
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       {event.attendees.length === 0 ? (
                         <p className="py-8 text-center text-gray-500">No attendees yet</p>
@@ -393,8 +490,18 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                             </div>
                             <div className="flex items-center gap-2">
                               {attendee.checkedIn && (
-                                <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                                  ✓ Checked In
+                                <div className="flex items-center gap-2">
+                                  <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                    ✓ Checked In
+                                  </div>
+                                  {attendee.checkInMethod && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {attendee.checkInMethod === 'qr_scan' && '📱 QR Scan'}
+                                      {attendee.checkInMethod === 'manual' && '✋ Manual'}
+                                      {attendee.checkInMethod === 'event_qr' && '📋 Event QR'}
+                                      {attendee.checkInMethod === 'self_qr' && '📱 Self QR'}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                               <div
@@ -550,6 +657,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                   <div>
                     <p className="text-sm text-gray-600">Checked In</p>
                     <p className="text-2xl font-bold text-blue-600">{checkedInCount}</p>
+                    {qrScannedCount > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {qrScannedCount} via QR scan
+                      </p>
+                    )}
                   </div>
                 )}
                 <div>

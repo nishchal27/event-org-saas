@@ -188,6 +188,12 @@ export const analyticsRouter = router({
       const waitlist = event.attendees.filter((a) => a.isWaitlist).length
       const checkedIn = event.attendees.filter((a) => a.checkedIn).length
 
+      // Check-in method breakdown
+      const qrScanned = event.attendees.filter((a) => a.checkInMethod === 'qr_scan').length
+      const manualCheckIn = event.attendees.filter((a) => a.checkInMethod === 'manual').length
+      const eventQrCheckIn = event.attendees.filter((a) => a.checkInMethod === 'event_qr').length
+      const selfQrCheckIn = event.attendees.filter((a) => a.checkInMethod === 'self_qr').length
+
       const totalInvited = event.attendees.length
       const totalResponses = confirmed + declined
       const responseRate = totalInvited > 0 ? (totalResponses / totalInvited) * 100 : 0
@@ -210,6 +216,12 @@ export const analyticsRouter = router({
         whatsappDeliveryRate: Math.round(whatsappDeliveryRate),
         capacity: event.maxCapacity,
         capacityUsed: event.maxCapacity ? (confirmed / event.maxCapacity) * 100 : null,
+        checkInMethods: {
+          qrScanned,
+          manualCheckIn,
+          eventQrCheckIn,
+          selfQrCheckIn,
+        },
       }
     }),
 
