@@ -186,11 +186,11 @@ MIT
 
 Comprehensive documentation is available:
 
-- **[DOCUMENTATION.md](./DOCUMENTATION.md)** - Complete technical documentation
-- **[API_REFERENCE.md](./API_REFERENCE.md)** - API endpoints reference
-- **[USER_GUIDE_PREMIUM_FEATURES.md](./USER_GUIDE_PREMIUM_FEATURES.md)** - User guide for premium features
-- **[SETUP_PREMIUM_FEATURES.md](./SETUP_PREMIUM_FEATURES.md)** - Premium features setup
-- **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** - Complete documentation index
+- **[README.md](./README.md)** - Project overview and quick start (you are here)
+- **[DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)** - Complete technical documentation for developers
+- **[IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md)** - Feature implementation details and business value
+- **[USER_GUIDE.md](./USER_GUIDE.md)** - User-facing guide for all features
+- **[CHANGELOG.md](./CHANGELOG.md)** - Version history and changes
 
 ## Support
 
