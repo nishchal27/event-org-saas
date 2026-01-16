@@ -15,11 +15,11 @@ const plans = [
     description: 'Perfect for trying out EventOrg',
     features: [
       '2 events per month',
-      '60 WhatsApp messages/month',
+      'Manual WhatsApp messaging',
       '10 AI generations/month',
-      'Higher contact limit',
       'Event page & registration',
       'Event preview',
+      'Basic analytics',
     ],
     cta: 'Get Started Free',
     popular: false,
@@ -33,13 +33,15 @@ const plans = [
     description: 'For trainers, coaches & small groups',
     features: [
       '15 events per month',
-      '300 WhatsApp messages/month',
+      'Manual WhatsApp messaging',
       '60 AI generations/month',
-      'Higher contact limit',
-      'WhatsApp automation',
-      'AI content generation',
+      'Unique QR codes per attendee',
+      'QR check-in system',
+      'Reminder templates & checklist',
+      'Event templates',
       'CSV export',
-      'Reminder messages (1 per event)',
+      'Advanced analytics',
+      'Contact groups',
       'Email support',
     ],
     cta: 'Start Free Trial',
@@ -54,12 +56,14 @@ const plans = [
     description: 'For growing instructors & organizers',
     features: [
       'Unlimited events',
-      '800 WhatsApp messages/month',
+      'Manual WhatsApp messaging',
       '200 AI generations/month',
-      'Higher contact limit',
-      'Multiple reminders',
+      'Unique QR codes per attendee',
+      'QR check-in system',
+      'Full reminder system',
+      'All premium features',
       'Priority support',
-      'Early access to new features',
+      'Early access to automation',
     ],
     cta: 'Start Free Trial',
     popular: true,
@@ -136,7 +140,7 @@ export function Pricing() {
             Simple, Transparent Pricing
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Choose the plan that fits your needs. All plans include higher contact limits. No credit card required to start.
+            Choose the plan that fits your needs. Start free, upgrade anytime. No credit card required.
           </p>
         </motion.div>
 

@@ -10,7 +10,7 @@ const testimonials = [
     role: 'Yoga Instructor',
     organization: 'Zen Yoga Studio',
     content:
-      'EventOrg has transformed how I manage my yoga classes. The WhatsApp automation saves me hours every week, and my students love the instant reminders. Perfect for tracking attendance too!',
+      'EventOrg has transformed how I manage my yoga classes. The message templates and reminder checklist save me hours every week. The unique QR codes make check-in so fast! Perfect for tracking attendance.',
     rating: 5,
     avatar: 'PS',
     gradient: 'from-green-500 to-emerald-600',
@@ -49,8 +49,8 @@ const testimonials = [
 
 const stats = [
   { value: '10K+', label: 'Events Created', gradient: 'from-blue-500 to-cyan-500' },
-  { value: '500K+', label: 'WhatsApp Messages Sent', gradient: 'from-green-500 to-emerald-500' },
-  { value: '2K+', label: 'Active Users', gradient: 'from-purple-500 to-pink-500' },
+  { value: '50K+', label: 'Attendees Tracked', gradient: 'from-green-500 to-emerald-500' },
+  { value: '2K+', label: 'Active Organizers', gradient: 'from-purple-500 to-pink-500' },
   { value: '98%', label: 'Customer Satisfaction', gradient: 'from-yellow-500 to-orange-500' },
 ]
 

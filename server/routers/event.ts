@@ -519,6 +519,47 @@ export const eventRouter = router({
       })
     }),
 
+  updateReminderStatus: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        reminderType: z.enum(['invitation', 'reminder1', 'reminder2', 'reminder3']),
+        sent: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const event = await ctx.prisma.event.findFirst({
+        where: {
+          id: input.eventId,
+          organizationId: ctx.organization.id,
+        },
+      })
+
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Event not found' })
+      }
+
+      const updateData: any = {}
+      if (input.reminderType === 'invitation') {
+        updateData.invitationSent = input.sent
+      } else if (input.reminderType === 'reminder1') {
+        updateData.reminder1Sent = input.sent
+      } else if (input.reminderType === 'reminder2') {
+        updateData.reminder2Sent = input.sent
+      } else if (input.reminderType === 'reminder3') {
+        updateData.reminder3Sent = input.sent
+      }
+
+      return ctx.prisma.event.update({
+        where: { id: input.eventId },
+        data: updateData,
+      })
+    }),
+
   toggleRegistration: protectedProcedure
     .input(z.object({ id: z.string(), closed: z.boolean() }))
     .mutation(async ({ ctx, input }) => {

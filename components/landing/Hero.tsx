@@ -130,7 +130,7 @@ export function Hero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
             >
-              Automate WhatsApp.
+              Track Attendance.
             </motion.span>
           </motion.h1>
 
@@ -141,14 +141,14 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 0.6 }}
             className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
-            Create events, notify people on WhatsApp, and track attendance — for groups, instructors, and organizers. 
+            Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. 
             <motion.span
               className="block mt-2 font-semibold text-foreground"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
             >
-              Now with advanced analytics, templates, QR check-in, and more premium features.
+              Now with unique QR codes per attendee, reminder system, advanced analytics, and more premium features.
             </motion.span>
           </motion.p>
 

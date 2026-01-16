@@ -15,11 +15,11 @@ const coreFeatures = [
   },
   {
     icon: MessageSquare,
-    title: 'WhatsApp Automation',
-    description: 'Send instant invitations and reminders via WhatsApp. Reach attendees where they are.',
+    title: 'WhatsApp Messaging',
+    description: 'Generate invitation and reminder messages instantly. Copy and send via WhatsApp with one click. Automation coming soon.',
     tech: 'whatsapp',
     gradient: 'from-green-500 to-emerald-600',
-    highlight: 'Auto-send',
+    highlight: 'Smart templates',
   },
   {
     icon: Sparkles,
@@ -94,7 +94,7 @@ export function Features() {
             <span className="text-foreground">In One Platform</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Powerful tools designed for trainers, coaches, and organizers. Create events, manage contacts, send WhatsApp notifications, and track attendance—all seamlessly integrated.
+            Powerful tools designed for trainers, coaches, and organizers. Create events, manage contacts, send WhatsApp messages, and track attendance with unique QR codes—all seamlessly integrated.
           </p>
         </motion.div>
 

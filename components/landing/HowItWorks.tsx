@@ -21,16 +21,16 @@ const steps = [
   },
   {
     number: '03',
-    title: 'Send Notifications',
+    title: 'Send WhatsApp Messages',
     description:
-      'Select your attendees and send WhatsApp notifications instantly. Reminders and updates go out automatically.',
+      'Generate invitation and reminder messages instantly. Copy and send via WhatsApp with one click. Track what you\'ve sent with our reminder checklist.',
     gradient: 'from-green-500 to-emerald-500',
   },
   {
     number: '04',
-    title: 'Track & Manage',
+    title: 'Track & Check-in',
     description:
-      'Monitor attendance, track delivery status, and manage your events all from one dashboard.',
+      'Each attendee gets a unique QR code. Scan at the event for instant check-in. Monitor attendance and analytics all from one dashboard.',
     gradient: 'from-orange-500 to-red-500',
   },
 ]

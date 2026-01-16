@@ -41,9 +41,9 @@ Create events, notify people on WhatsApp, and track attendance — for groups, i
 - ✅ **Enhanced Dashboard UX** - Modern, intuitive interface with quick actions
 
 ### Pricing Tiers
-- **Free**: 2 events/month, 60 WhatsApp messages, 10 AI generations, basic analytics
-- **Monthly (₹249)**: 15 events/month, 300 WhatsApp messages, 60 AI generations, full analytics, templates, exports, QR check-in
-- **Monthly Pro (₹499)**: Unlimited events, 800 WhatsApp messages, 200 AI generations, all premium features, priority support
+- **Free**: 2 events/month, manual WhatsApp messaging, 10 AI generations, basic analytics
+- **Monthly (₹249)**: 15 events/month, manual WhatsApp messaging, 60 AI generations, unique QR per attendee, reminder system, templates, exports, advanced analytics
+- **Monthly Pro (₹499)**: Unlimited events, manual WhatsApp messaging, 200 AI generations, all premium features, priority support, early access to automation
 
 ## Getting Started
 

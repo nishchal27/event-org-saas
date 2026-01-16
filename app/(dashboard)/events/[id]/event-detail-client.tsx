@@ -12,9 +12,11 @@ import Link from 'next/link'
 import { ContactSelection } from '@/components/contact-selection'
 import { useToast } from '@/hooks/use-toast'
 import { PostsTabClient } from './posts-tab-client'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Bell } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { ManualWhatsAppInvite } from '@/components/manual-whatsapp-invite'
+import { EventReminders } from '@/components/event-reminders'
 import {
   Select,
   SelectContent,
@@ -35,6 +37,31 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
       staleTime: 2 * 60 * 1000,
     }
   )
+
+  const updateReminderMutation = trpc.event.updateReminderStatus.useMutation({
+    onSuccess: () => {
+      utils.event.getById.invalidate({ id: eventId })
+      toast({
+        title: 'Success',
+        description: 'Reminder status updated',
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update reminder status',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const handleReminderUpdate = (reminderType: 'invitation' | 'reminder1' | 'reminder2' | 'reminder3', sent: boolean) => {
+    updateReminderMutation.mutate({
+      eventId,
+      reminderType,
+      sent,
+    })
+  }
   const { data: contacts } = trpc.contact.getAll.useQuery(undefined, {
     // Contacts list is fresh for 1 minute
     staleTime: 60 * 1000,
@@ -250,11 +277,18 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                     </span>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="invite">
+                  <MessageSquare className="mr-1 h-4 w-4" />
+                  Invite
+                </TabsTrigger>
+                <TabsTrigger value="reminders">
+                  <Bell className="mr-1 h-4 w-4" />
+                  Reminders
+                </TabsTrigger>
                 <TabsTrigger value="posts">
                   <Sparkles className="mr-1 h-4 w-4" />
                   Posts {posts && posts.length > 0 && `(${posts.length})`}
                 </TabsTrigger>
-                <TabsTrigger value="invite">Invite</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details">
@@ -530,99 +564,59 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                 <PostsTabClient eventId={eventId} />
               </TabsContent>
 
-              <TabsContent value="invite">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Send Invitations</CardTitle>
-                    <CardDescription>
-                      Select contacts to send WhatsApp invitations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {contacts && contacts.length > 0 ? (
-                      <>
-                        <ContactSelection
-                          contacts={contacts}
-                          selectedContacts={selectedContacts}
-                          onSelectionChange={setSelectedContacts}
-                        />
-                        
-                        {/* Message Template Selection */}
-                        {messageTemplates && messageTemplates.length > 0 && (
-                          <div className="space-y-2">
-                            <Label>Message Template (Optional)</Label>
-                            <Select
-                              value={selectedMessageTemplateId}
-                              onValueChange={(value) => {
-                                setSelectedMessageTemplateId(value)
-                                setCustomMessage('')
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Use default message or select a template..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">Default Message</SelectItem>
-                                {messageTemplates.map((template) => (
-                                  <SelectItem key={template.id} value={template.id}>
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4" />
-                                      <span>{template.name}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        ({template.type})
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {selectedMessageTemplate && (
-                              <div className="rounded-lg bg-muted p-3 text-sm">
-                                <p className="font-medium mb-1">Template Preview:</p>
-                                <p className="text-muted-foreground whitespace-pre-wrap">
-                                  {selectedMessageTemplate.content}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
+              <TabsContent value="invite" className="space-y-4">
+                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-900 mb-1">Manual WhatsApp (MVP)</p>
+                      <p className="text-sm text-blue-700">
+                        Generate invitation message, copy it, and send manually via WhatsApp. 
+                        Automation features will be available in future phases.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {event && (
+                  <ManualWhatsAppInvite
+                    event={{
+                      id: event.id,
+                      title: event.title,
+                      eventDate: event.eventDate,
+                      endDate: event.endDate,
+                      startTime: event.startTime,
+                      endTime: event.endTime,
+                      location: event.location,
+                      description: event.description,
+                      publicSlug: event.publicSlug,
+                    }}
+                    onMessageGenerated={(message) => {
+                      // Optional: Track that invitation was generated
+                    }}
+                  />
+                )}
+              </TabsContent>
 
-                        {/* Custom Message Override */}
-                        <div className="space-y-2">
-                          <Label>Custom Message (Optional - Overrides template)</Label>
-                          <Textarea
-                            value={customMessage}
-                            onChange={(e) => setCustomMessage(e.target.value)}
-                            placeholder="Enter custom message or leave empty to use template/default..."
-                            rows={4}
-                            className="font-mono text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Available variables: {'{name}'}, {'{eventTitle}'}, {'{eventDate}'}, {'{eventTime}'}, {'{eventLocation}'}
-                          </p>
-                        </div>
-
-                        <Button
-                          onClick={handleSendInvites}
-                          disabled={whatsappMutation.isLoading || selectedContacts.length === 0}
-                          className="w-full"
-                        >
-                          <MessageSquare className="mr-2 h-4 w-4" />
-                          {whatsappMutation.isLoading
-                            ? 'Sending...'
-                            : `Send to ${selectedContacts.length} contact${selectedContacts.length !== 1 ? 's' : ''}`}
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="py-8 text-center">
-                        <p className="text-gray-500">No contacts available</p>
-                        <Link href="/contacts" className="mt-4 inline-block">
-                          <Button variant="outline">Add Contacts</Button>
-                        </Link>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              <TabsContent value="reminders" className="space-y-4">
+                {event && (
+                  <EventReminders
+                    event={{
+                      id: event.id,
+                      title: event.title,
+                      eventDate: event.eventDate,
+                      endDate: event.endDate,
+                      startTime: event.startTime,
+                      endTime: event.endTime,
+                      location: event.location,
+                      description: event.description,
+                      invitationSent: (event as any).invitationSent ?? false,
+                      reminder1Sent: (event as any).reminder1Sent ?? false,
+                      reminder2Sent: (event as any).reminder2Sent ?? false,
+                      reminder3Sent: (event as any).reminder3Sent ?? false,
+                    }}
+                    onReminderUpdate={handleReminderUpdate}
+                  />
+                )}
               </TabsContent>
             </Tabs>
           </div>

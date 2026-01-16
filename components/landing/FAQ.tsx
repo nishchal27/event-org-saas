@@ -17,9 +17,9 @@ const faqs = [
       'Absolutely! EventOrg is perfect for trainers, coaches, and instructors. You can create class schedules, send WhatsApp reminders to students, track attendance, and manage repeat events easily.',
   },
   {
-    question: 'How do WhatsApp notifications work?',
+    question: 'How do WhatsApp messages work?',
     answer:
-      'EventOrg integrates with WhatsApp Business API to send automated notifications. Once you create an event and add contacts, you can send invitations, reminders, and updates directly to attendees via WhatsApp.',
+      'EventOrg generates professional WhatsApp invitation and reminder messages for you. Simply copy the message and send it via WhatsApp with one click. Track what you\'ve sent with our reminder checklist. Automated sending coming soon for Pro users.',
   },
   {
     question: 'Can I use this for community events and meetups?',

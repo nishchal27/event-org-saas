@@ -89,6 +89,11 @@ model Event {
   customField2Value  String?
   registrationClosed Boolean           @default(false)
   templateId         String?
+  // Reminder tracking (manual system)
+  invitationSent     Boolean           @default(false)
+  reminder1Sent      Boolean           @default(false)  // 1 day before
+  reminder2Sent      Boolean           @default(false)  // Event day
+  reminder3Sent      Boolean           @default(false)  // 2 hours before
   deletedAt          DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
