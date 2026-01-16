@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Calendar, MapPin } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -8,45 +9,50 @@ import { motion } from 'framer-motion'
 export function Hero() {
   const events = [
     {
-      title: 'Workshop',
+      title: 'Workshop / Seminar',
       date: 'Mar 15',
-      location: 'Studio',
+      location: 'Conference Hall',
+      image: '/images/hero/Speaker + audience.jpg',
       gradient: 'from-blue-500 to-cyan-500',
       height: 'h-80 sm:h-96 lg:h-[420px]',
       translateY: 'translate-y-0',
       zIndex: 'z-10',
     },
     {
-      title: 'Fitness Workshop',
+      title: 'Conference / Meetup',
       date: 'Mar 20',
-      location: 'Online',
+      location: 'Convention Center',
+      image: '/images/hero/people+networking.jpg',
       gradient: 'from-purple-500 to-pink-500',
       height: 'h-64 sm:h-80 lg:h-[380px]',
       translateY: 'translate-y-8 sm:translate-y-12',
       zIndex: 'z-20',
     },
     {
-      title: 'Music Lesson',
+      title: 'Yoga / Meditation',
       date: 'Mar 25',
-      location: 'Academy',
+      location: 'Wellness Studio',
+      image: '/images/hero/group-meditation.jpg',
       gradient: 'from-green-500 to-emerald-500',
       height: 'h-72 sm:h-88 lg:h-[400px]',
       translateY: 'translate-y-4 sm:translate-y-6',
       zIndex: 'z-30',
     },
     {
-      title: 'Community Meetup',
+      title: 'Training / Coaching',
       date: 'Apr 2',
-      location: 'Community Center',
+      location: 'Training Center',
+      image: '/images/hero/Instructor teaching.jpg',
       gradient: 'from-orange-500 to-red-500',
       height: 'h-60 sm:h-76 lg:h-[360px]',
       translateY: 'translate-y-12 sm:translate-y-16',
       zIndex: 'z-40',
     },
     {
-      title: 'Dance Workshop',
+      title: 'Community / NGO Events',
       date: 'Apr 10',
-      location: 'Studio',
+      location: 'Community Hall',
+      image: '/images/hero/group-activities.jpg',
       gradient: 'from-yellow-500 to-orange-500',
       height: 'h-76 sm:h-92 lg:h-[410px]',
       translateY: 'translate-y-2 sm:translate-y-4',
@@ -254,17 +260,17 @@ export function Hero() {
                   className={`group relative ${event.zIndex} ${event.translateY} overflow-hidden rounded-3xl bg-card shadow-2xl transition-all duration-300 hover:shadow-primary/30 ${event.height}`}
                 >
                   {/* Event Image */}
-                  <div
-                    className={`relative h-full w-full overflow-hidden bg-gradient-to-br ${event.gradient}`}
-                  >
-                    {/* Placeholder - user will replace with actual images */}
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center text-white/80">
-                        <Calendar className="mx-auto mb-2 h-16 w-16" />
-                        <div className="text-xs font-medium">Event Image</div>
-                      </div>
-                    </div>
-
+                  <div className="relative h-full w-full overflow-hidden">
+                    <Image
+                      src={event.image}
+                      alt={event.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 200px, (max-width: 1024px) 240px, 20vw"
+                      priority={index < 2}
+                    />
+                    {/* Subtle gradient overlay for better text readability */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${event.gradient} opacity-30 mix-blend-overlay`} />
                     {/* Subtle overlay on hover */}
                     <div className="absolute inset-0 bg-black/0 transition-all duration-300 group-hover:bg-black/10" />
                   </div>
@@ -302,17 +308,17 @@ export function Hero() {
                   className={`group relative flex-shrink-0 overflow-hidden rounded-3xl bg-card shadow-xl transition-all duration-300 hover:shadow-2xl ${event.height} w-[200px] sm:w-[240px]`}
                 >
                   {/* Event Image */}
-                  <div
-                    className={`relative h-full w-full overflow-hidden bg-gradient-to-br ${event.gradient}`}
-                  >
-                    {/* Placeholder - user will replace with actual images */}
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center text-white/80">
-                        <Calendar className="mx-auto mb-2 h-12 w-12 sm:h-14 sm:w-14" />
-                        <div className="text-xs font-medium">Event Image</div>
-                      </div>
-                    </div>
-
+                  <div className="relative h-full w-full overflow-hidden">
+                    <Image
+                      src={event.image}
+                      alt={event.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 200px, 240px"
+                      priority={index < 2}
+                    />
+                    {/* Subtle gradient overlay for better text readability */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${event.gradient} opacity-30 mix-blend-overlay`} />
                     {/* Subtle overlay on hover */}
                     <div className="absolute inset-0 bg-black/0 transition-all duration-300 group-hover:bg-black/10" />
                   </div>
