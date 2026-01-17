@@ -3,10 +3,9 @@
 import { trpc } from '@/lib/trpc-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Calendar, Users, MessageSquare, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Activity, BarChart3 } from 'lucide-react'
+import { Plus, Calendar, Users, MessageSquare, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 
 export function DashboardClient() {
   const { data: events, isLoading: eventsLoading } = trpc.event.getAll.useQuery(undefined, {
@@ -15,9 +14,8 @@ export function DashboardClient() {
   const { data: usage } = trpc.subscription.getUsage.useQuery(undefined, {
     staleTime: 2 * 60 * 1000,
   })
-  const { data: analytics, isLoading: analyticsLoading } = trpc.analytics.getOverview.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000, // Analytics can be cached longer
-  })
+  // Analytics dashboard is available at /analytics (admin-only)
+  // Removed analytics call from main dashboard to avoid errors
 
   const recentEvents = events?.slice(0, 5) || []
 
@@ -41,93 +39,7 @@ export function DashboardClient() {
       </div>
 
       <div className="container mx-auto px-4 py-8 space-y-6">
-        {/* Key Metrics */}
-        {analytics && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-muted-foreground">Events This Month</CardDescription>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-2xl text-foreground">
-                    {analytics.currentMonth.events}
-                  </CardTitle>
-                  {analytics.trends.eventsChange !== 0 && (
-                    <div className={`flex items-center gap-1 text-sm ${analytics.trends.eventsChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {analytics.trends.eventsChange > 0 ? (
-                        <ArrowUpRight className="h-4 w-4" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4" />
-                      )}
-                      {Math.abs(analytics.trends.eventsChange)}%
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  {analytics.lastMonth.events} last month
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-muted-foreground">Confirmed Attendees</CardDescription>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-2xl text-foreground">
-                    {analytics.currentMonth.confirmed}
-                  </CardTitle>
-                  {analytics.trends.attendanceChange !== 0 && (
-                    <div className={`flex items-center gap-1 text-sm ${analytics.trends.attendanceChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {analytics.trends.attendanceChange > 0 ? (
-                        <ArrowUpRight className="h-4 w-4" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4" />
-                      )}
-                      {Math.abs(analytics.trends.attendanceChange)}%
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  {analytics.lastMonth.confirmed} last month
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-muted-foreground">Response Rate</CardDescription>
-                <CardTitle className="text-2xl text-foreground">
-                  {analytics.currentMonth.responseRate}%
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${analytics.currentMonth.responseRate}%` }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-muted-foreground">Upcoming Events</CardDescription>
-                <CardTitle className="text-2xl text-foreground">
-                  {analytics.upcomingEvents}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Scheduled events
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Note: Analytics dashboard is available at /analytics (admin-only) */}
 
         {/* Usage Stats */}
         {usage && (
@@ -168,52 +80,6 @@ export function DashboardClient() {
           </div>
         )}
 
-        {/* Charts Row */}
-        {analytics && analytics.monthlyEvents.length > 0 && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Events Created (6 Months)
-                </CardTitle>
-                <CardDescription>Track your event creation trends</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.monthlyEvents}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Attendance Trends (6 Months)
-                </CardTitle>
-                <CardDescription>Confirmed attendees over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={analytics.monthlyAttendance}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="count" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Recent Events & Quick Actions */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

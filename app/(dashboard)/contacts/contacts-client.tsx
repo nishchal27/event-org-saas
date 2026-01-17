@@ -37,9 +37,17 @@ export function ContactsClient() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const utils = trpc.useUtils()
   const { data: contacts, isLoading, refetch } = trpc.contact.getAll.useQuery()
-  const { data: engagement } = trpc.analytics.getContactEngagement.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  })
+  // Engagement analytics - disabled for now (endpoint not implemented)
+  // const { data: engagement } = trpc.analytics.getContactEngagement.useQuery(undefined, {
+  //   staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  // })
+  const engagement: Array<{
+    contactId: string
+    totalEvents: number
+    confirmedEvents: number
+    engagementRate: number
+    lastEventDate?: string | Date
+  }> | undefined = undefined
 
   const handleExport = async () => {
     try {
@@ -116,14 +124,16 @@ export function ContactsClient() {
   }, [contacts, searchQuery])
 
   // Create engagement map for quick lookup
+  // Engagement analytics disabled - always return empty map
   const engagementMap = useMemo(() => {
-    if (!engagement) return new Map()
-    const map = new Map()
-    engagement.forEach((eng) => {
-      map.set(eng.contactId, eng)
-    })
-    return map
-  }, [engagement])
+    return new Map<string, {
+      contactId: string
+      totalEvents: number
+      confirmedEvents: number
+      engagementRate: number
+      lastEventDate?: string | Date
+    }>()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">

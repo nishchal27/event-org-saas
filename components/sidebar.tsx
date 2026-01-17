@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calendar, Users, Settings, Home, CreditCard } from 'lucide-react'
+import { Calendar, Users, Settings, Home, CreditCard, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { OrganizationSwitcher, UserButton } from '@clerk/nextjs'
+import { OrganizationSwitcher, UserButton, useOrganization } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { trpc } from '@/lib/trpc-client'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -19,6 +20,13 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { organization } = useOrganization()
+  const { data: currentOrg } = trpc.organization.getCurrent.useQuery(undefined, {
+    enabled: !!organization,
+  })
+
+  // Check if user is admin
+  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org:admin'
 
   return (
     <aside className="hidden w-64 border-r border-border bg-card md:block">
@@ -51,6 +59,21 @@ export function Sidebar() {
               </Link>
             )
           })}
+          {/* Admin-only: Analytics Dashboard */}
+          {isAdmin && (
+            <Link
+              href="/analytics"
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                pathname === '/analytics' || pathname?.startsWith('/analytics/')
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <BarChart3 className="h-5 w-5" />
+              Analytics
+            </Link>
+          )}
         </nav>
         <div className="border-t border-border p-4 space-y-3">
           <div className="flex items-center justify-between">

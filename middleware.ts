@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/create-organization(.*)', // Allow catch-all route for CreateOrganization component
+  '/monitoring', // Sentry tunnel route - must be public
 ])
 
 export default clerkMiddleware(async (auth, req) => {

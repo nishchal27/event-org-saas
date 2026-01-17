@@ -21,7 +21,7 @@ model Attendee {
   whatsappSent   Boolean   @default(false)
   whatsappSentAt DateTime?
   attendeeQrCode String?   @unique
-  checkInMethod  String?   // 'qr_scan', 'manual', 'event_qr', 'self_qr'
+  checkInMethod  String? // 'qr_scan', 'manual', 'event_qr', 'self_qr'
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   contact        Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
@@ -35,18 +35,18 @@ model Attendee {
 }
 
 model Contact {
-  id             String        @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
   name           String
   phone          String
   email          String?
   tags           String[]
   location       String?
-  notes          String?       @db.Text
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   attendees      Attendee[]
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   eventContacts  EventContact[]
 
   @@unique([organizationId, phone])
@@ -91,9 +91,9 @@ model Event {
   templateId         String?
   // Reminder tracking (manual system)
   invitationSent     Boolean           @default(false)
-  reminder1Sent      Boolean           @default(false)  // 1 day before
-  reminder2Sent      Boolean           @default(false)  // Event day
-  reminder3Sent      Boolean           @default(false)  // 2 hours before
+  reminder1Sent      Boolean           @default(false) // 1 day before
+  reminder2Sent      Boolean           @default(false) // Event day
+  reminder3Sent      Boolean           @default(false) // 2 hours before
   deletedAt          DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
@@ -123,25 +123,26 @@ model Membership {
 }
 
 model Organization {
-  id              String            @id @default(cuid())
-  clerkOrgId      String            @unique
-  name            String
-  slug            String            @unique
-  logo            String?
-  accentColor     String?           @default("#3b82f6")
-  backgroundColor String?           @default("light")
-  fontStyle       String?           @default("default")
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  contacts        Contact[]
-  events          Event[]
-  memberships     Membership[]
-  socialPosts     SocialMediaPost[]
-  subscription    Subscription?
-  usage           Usage[]
-  eventTemplates  EventTemplate[]
+  id               String            @id @default(cuid())
+  clerkOrgId       String            @unique
+  name             String
+  slug             String            @unique
+  logo             String?
+  accentColor      String?           @default("#3b82f6")
+  backgroundColor  String?           @default("light")
+  fontStyle        String?           @default("default")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  contacts         Contact[]
+  events           Event[]
+  memberships      Membership[]
+  socialPosts      SocialMediaPost[]
+  subscription     Subscription?
+  usage            Usage[]
+  eventTemplates   EventTemplate[]
   messageTemplates MessageTemplate[]
-  contactGroups   ContactGroup[]
+  contactGroups    ContactGroup[]
+  analyticsEvents  AnalyticsEvent[]
 
   @@map("organizations")
 }
@@ -207,38 +208,38 @@ model Usage {
 }
 
 model EventTemplate {
-  id             String   @id @default(cuid())
-  organizationId String
-  name           String
-  title          String
-  description    String   @db.Text
-  locationType   String
-  location       String?
-  startTime      String?
-  endTime        String?
-  additionalNotes String? @db.Text
+  id                String       @id @default(cuid())
+  organizationId    String
+  name              String
+  title             String
+  description       String       @db.Text
+  locationType      String
+  location          String?
+  startTime         String?
+  endTime           String?
+  additionalNotes   String?      @db.Text
   customField1Label String?
   customField1Value String?
   customField2Label String?
   customField2Value String?
-  maxCapacity    Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  events         Event[]
+  maxCapacity       Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events            Event[]
 
   @@index([organizationId])
   @@map("event_templates")
 }
 
 model MessageTemplate {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   name           String
-  content        String   @db.Text
-  type           String   // 'invitation', 'reminder', 'followup'
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  content        String       @db.Text
+  type           String // 'invitation', 'reminder', 'followup'
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
@@ -246,13 +247,13 @@ model MessageTemplate {
 }
 
 model ContactGroup {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   name           String
   description    String?
   contactIds     String[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
@@ -269,4 +270,22 @@ model User {
   memberships Membership[]
 
   @@map("users")
+}
+
+model AnalyticsEvent {
+  id             String        @id @default(cuid())
+  organizationId String?
+  userId         String?
+  event          String
+  properties     Json          @default("{}")
+  userAgent      String?
+  url            String?
+  timestamp      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([event])
+  @@index([timestamp])
+  @@map("analytics_events")
 }
