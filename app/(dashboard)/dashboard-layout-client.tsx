@@ -61,7 +61,7 @@ export function DashboardLayoutClient({
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 md:ml-0">{children}</main>
     </div>
   )
 }

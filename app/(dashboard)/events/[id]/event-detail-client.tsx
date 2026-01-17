@@ -217,43 +217,48 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
     : formatTime(event.startTime)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{event.title}</h1>
+        <div className="container mx-auto px-4 py-4 md:px-6 max-w-full">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="pt-12 md:pt-0">
+              <h1 className="text-xl md:text-2xl font-bold break-words">{event.title}</h1>
               <p className="text-sm text-gray-600">
                 Created {formatDate(event.createdAt)}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link href={`/event/${event.publicSlug}`} target="_blank">
-                <Button variant="outline">
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
+                <Button variant="outline" size="sm" className="text-xs md:text-sm">
+                  <Eye className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                  <span className="hidden sm:inline">Preview</span>
+                  <span className="sm:hidden">View</span>
                 </Button>
               </Link>
-              <Button variant="outline" onClick={copyEventLink}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Link
+              <Button variant="outline" size="sm" onClick={copyEventLink} className="text-xs md:text-sm">
+                <Copy className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Copy Link</span>
+                <span className="sm:hidden">Link</span>
               </Button>
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="mr-2 h-4 w-4" />
-                Export
+              <Button variant="outline" size="sm" onClick={handleExport} className="text-xs md:text-sm">
+                <Download className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Export</span>
+                <span className="sm:hidden">Export</span>
               </Button>
               {event.qrCode && (
                 <>
                   <Link href={`/events/${eventId}/scan`}>
-                    <Button>
-                      <ScanLine className="mr-2 h-4 w-4" />
-                      Scan QR
+                    <Button size="sm" className="text-xs md:text-sm">
+                      <ScanLine className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden sm:inline">Scan QR</span>
+                      <span className="sm:hidden">Scan</span>
                     </Button>
                   </Link>
                   <Link href={`/events/${eventId}/checkin`}>
-                    <Button variant="outline">
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Check-in
+                    <Button variant="outline" size="sm" className="text-xs md:text-sm">
+                      <QrCode className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden sm:inline">Check-in</span>
+                      <span className="sm:hidden">Check-in</span>
                     </Button>
                   </Link>
                 </>
@@ -263,33 +268,39 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 md:px-6 md:py-8 max-w-full">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <Tabs defaultValue="details" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="attendees">
-                  Attendees ({event.attendees.length})
-                  {checkedInCount > 0 && (
-                    <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                      {checkedInCount} checked in
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="invite">
-                  <MessageSquare className="mr-1 h-4 w-4" />
-                  Invite
-                </TabsTrigger>
-                <TabsTrigger value="reminders">
-                  <Bell className="mr-1 h-4 w-4" />
-                  Reminders
-                </TabsTrigger>
-                <TabsTrigger value="posts">
-                  <Sparkles className="mr-1 h-4 w-4" />
-                  Posts {posts && posts.length > 0 && `(${posts.length})`}
-                </TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory">
+                <TabsList className="inline-flex w-auto min-w-full md:min-w-0 snap-start">
+                  <TabsTrigger value="details" className="whitespace-nowrap">Details</TabsTrigger>
+                  <TabsTrigger value="attendees" className="whitespace-nowrap">
+                    Attendees <span className="ml-1">({event.attendees.length})</span>
+                    {checkedInCount > 0 && (
+                      <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                        {checkedInCount}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="invite" className="whitespace-nowrap">
+                    <MessageSquare className="mr-1 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Invite</span>
+                    <span className="sm:hidden">Invite</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="reminders" className="whitespace-nowrap">
+                    <Bell className="mr-1 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Reminders</span>
+                    <span className="sm:hidden">Remind</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="posts" className="whitespace-nowrap">
+                    <Sparkles className="mr-1 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Posts</span>
+                    <span className="sm:hidden">Posts</span>
+                    {posts && posts.length > 0 && ` (${posts.length})`}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="details">
                 <Card>
@@ -301,26 +312,26 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                       <img
                         src={event.imageUrl}
                         alt={event.title}
-                        className="h-64 w-full rounded-lg object-cover"
+                        className="h-48 md:h-64 w-full rounded-lg object-cover"
                       />
                     )}
 
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <Calendar className="mt-1 h-5 w-5 text-gray-400" />
-                        <div>
+                        <Calendar className="mt-1 h-5 w-5 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium">Date & Time</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-600 break-words">
                             {dateLabel} • {timeLabel}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <MapPin className="mt-1 h-5 w-5 text-gray-400" />
-                        <div>
+                        <MapPin className="mt-1 h-5 w-5 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium">Location</p>
-                          <p className="text-sm text-gray-600">{event.location}</p>
+                          <p className="text-sm text-gray-600 break-words">{event.location}</p>
                         </div>
                       </div>
 
@@ -386,11 +397,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                       const checkedInCount = event.attendees.filter((a) => a.checkedIn).length
                       const hasCheckedIn = checkedInCount > 0
                       const gridCols = event.maxCapacity 
-                        ? (hasCheckedIn ? 'grid-cols-5' : 'grid-cols-4')
-                        : (hasCheckedIn ? 'grid-cols-4' : 'grid-cols-3')
+                        ? (hasCheckedIn ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4')
+                        : (hasCheckedIn ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3')
                       
                       return (
-                        <div className={`mb-4 grid gap-4 ${gridCols}`}>
+                        <div className={`mb-4 grid gap-3 md:gap-4 ${gridCols}`}>
                           {hasCheckedIn && (
                             <div className="rounded-lg bg-blue-50 p-4 text-center">
                               <CheckCircle className="mx-auto h-6 w-6 text-blue-600" />
@@ -436,7 +447,7 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                           <PieChart className="h-4 w-4 text-primary" />
                           <h4 className="text-sm font-semibold text-foreground">Check-in Methods Breakdown</h4>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
                           {qrScannedCount > 0 && (
                             <motion.div
                               initial={{ opacity: 0, scale: 0.9 }}
@@ -516,20 +527,20 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                         event.attendees.map((attendee) => (
                           <div
                             key={attendee.id}
-                            className="flex items-center justify-between rounded-lg border p-3"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border p-3"
                           >
-                            <div>
-                              <p className="font-medium">{attendee.name}</p>
-                              <p className="text-sm text-gray-600">{attendee.phone}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium break-words">{attendee.name}</p>
+                              <p className="text-sm text-gray-600 break-words">{attendee.phone}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {attendee.checkedIn && (
-                                <div className="flex items-center gap-2">
-                                  <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 whitespace-nowrap">
                                     ✓ Checked In
                                   </div>
                                   {attendee.checkInMethod && (
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-xs text-muted-foreground whitespace-nowrap">
                                       {attendee.checkInMethod === 'qr_scan' && '📱 QR Scan'}
                                       {attendee.checkInMethod === 'manual' && '✋ Manual'}
                                       {attendee.checkInMethod === 'event_qr' && '📋 Event QR'}
@@ -539,7 +550,7 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                                 </div>
                               )}
                               <div
-                                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                                className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
                                   attendee.status === 'confirmed'
                                     ? attendee.isWaitlist
                                       ? 'bg-yellow-100 text-yellow-800'
@@ -621,7 +632,7 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
             </Tabs>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 lg:sticky lg:top-4">
             <Card>
               <CardHeader>
                 <CardTitle>Quick Stats</CardTitle>
