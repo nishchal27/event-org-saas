@@ -8,6 +8,13 @@ export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: '/api/trpc',
+      // Include credentials (cookies) with requests so Clerk can read the session
+      fetch(url, options) {
+        return fetch(url, {
+          ...options,
+          credentials: 'include',
+        })
+      },
     }),
   ],
 })

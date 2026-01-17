@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Users, Settings, Home, CreditCard, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { OrganizationSwitcher, UserButton, useOrganization } from '@clerk/nextjs'
+import { OrganizationSwitcher, UserButton, useOrganization, useUser } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { trpc } from '@/lib/trpc-client'
 
@@ -20,9 +20,19 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { organization } = useOrganization()
+  const { organization, isLoaded: orgLoaded } = useOrganization()
+  const { isLoaded: userLoaded } = useUser()
+  
   const { data: currentOrg } = trpc.organization.getCurrent.useQuery(undefined, {
-    enabled: !!organization,
+    enabled: userLoaded && orgLoaded && !!organization, // Wait for both user and org to be loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 
   // Check if user is admin
