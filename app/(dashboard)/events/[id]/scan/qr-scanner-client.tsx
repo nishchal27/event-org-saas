@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast'
 import { Html5Qrcode } from 'html5-qrcode'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { logger } from '@/lib/logger'
+import { trackEvent } from '@/lib/analytics'
 
 export function QRScannerClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -32,6 +34,19 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         { qrCode: data.attendeeQrCode || 'success', timestamp: new Date(), success: true },
         ...prev.slice(0, 4),
       ])
+      
+      // Track successful check-in
+      trackEvent('qr_scan_success', {
+        eventId,
+        attendeeId: data.id,
+      }, undefined, event?.organizationId)
+      
+      logger.checkIn.info('QR scan check-in successful', {
+        eventId,
+        attendeeId: data.id,
+        attendeeQrCode: data.attendeeQrCode,
+      })
+      
       toast({
         title: 'Success!',
         description: `${data.name} checked in successfully`,
@@ -46,6 +61,20 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         { qrCode: 'error', timestamp: new Date(), success: false },
         ...prev.slice(0, 4),
       ])
+      
+      // Track error
+      const errorObj = error instanceof Error ? error : new Error(error.message)
+      logger.checkIn.error('QR scan check-in failed', errorObj, {
+        eventId,
+        errorMessage: error.message,
+      })
+      
+      trackEvent('check_in_error', {
+        eventId,
+        errorType: 'qr_scan',
+        errorMessage: error.message,
+      }, undefined, event?.organizationId)
+      
       toast({
         title: 'Error',
         description: error.message,
@@ -223,8 +252,26 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       )
 
       setIsScanning(true)
+      
+      // Track successful scan start
+      trackEvent('qr_scan_started', { eventId }, undefined, event?.organizationId)
+      logger.qrScan.info('QR scanner started', { eventId })
     } catch (err: any) {
-      console.error('Error starting scanner:', err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      
+      // Log error
+      logger.qrScan.error('Failed to start QR scanner', error, {
+        eventId,
+        errorType: err.name,
+        errorMessage: err.message,
+      })
+      
+      // Track error
+      trackEvent('qr_scan_error', {
+        eventId,
+        errorType: err.name,
+        errorMessage: err.message,
+      }, undefined, event?.organizationId)
       
       // Clean up on error
       if (scannerRef.current) {
@@ -242,6 +289,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         errorMessage = 'Camera permission denied. Please allow camera access in your browser settings and reload the page.'
         setCameraPermission(false)
+        trackEvent('qr_scan_permission_denied', { eventId }, undefined, event?.organizationId)
       } else if (err.name === 'NotFoundError') {
         errorMessage = 'No camera found. Please connect a camera device.'
       } else if (err.name === 'NotReadableError') {

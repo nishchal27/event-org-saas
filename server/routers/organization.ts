@@ -43,7 +43,7 @@ export const organizationRouter = router({
 
   // Get current active organization
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.organization) {
+    if (!ctx.organization || !ctx.membership) {
       return null
     }
 
@@ -56,6 +56,7 @@ export const organizationRouter = router({
       accentColor: ctx.organization.accentColor,
       backgroundColor: ctx.organization.backgroundColor,
       fontStyle: ctx.organization.fontStyle,
+      role: ctx.membership.role, // Include user's role in organization
     }
   }),
 

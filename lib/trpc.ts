@@ -181,3 +181,25 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     },
   })
 })
+
+// Admin-only procedure - requires admin role in organization
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.organization || !ctx.membership) {
+    throw new TRPCError({ 
+      code: 'UNAUTHORIZED',
+      message: 'Organization membership required'
+    })
+  }
+
+  // Check if user is admin
+  const isAdmin = ctx.membership.role === 'admin' || ctx.membership.role === 'org:admin'
+  
+  if (!isAdmin) {
+    throw new TRPCError({ 
+      code: 'FORBIDDEN',
+      message: 'Admin access required'
+    })
+  }
+
+  return next({ ctx })
+})

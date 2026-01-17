@@ -1,11 +1,12 @@
 'use client'
 
 import { CreateOrganization, OrganizationSwitcher, useOrganizationList } from '@clerk/nextjs'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function CreateOrganizationPage() {
   const router = useRouter()
+  const hasRedirected = useRef(false)
   const { userMemberships, isLoaded } = useOrganizationList({
     userMemberships: {
       infinite: true,
@@ -14,7 +15,8 @@ export default function CreateOrganizationPage() {
 
   useEffect(() => {
     // If user already has organizations and is loaded, redirect to dashboard
-    if (isLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0) {
+    if (isLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0 && !hasRedirected.current) {
+      hasRedirected.current = true
       router.push('/dashboard')
     }
   }, [isLoaded, userMemberships, router])
