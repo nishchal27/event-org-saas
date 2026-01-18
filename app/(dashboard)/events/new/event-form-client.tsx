@@ -50,7 +50,16 @@ const eventSchema = z
     description: z.string().min(1, 'Description is required'),
     additionalNotes: z.string().optional().nullable(),
     audienceType: z.enum(['all', 'selected', 'public']),
-    maxCapacity: z.number().int().positive().optional().nullable(),
+    maxCapacity: z
+      .preprocess(
+        (val) => {
+          if (val === '' || val === null || val === undefined || val === 0) return null
+          const num = typeof val === 'string' ? Number(val) : (typeof val === 'number' ? val : null)
+          if (num === null || isNaN(num) || num <= 0) return null
+          return Math.floor(num)
+        },
+        z.union([z.number().int().positive(), z.null()]).optional()
+      ),
     customField1Label: z.string().optional().nullable(),
     customField1Value: z.string().optional().nullable(),
     customField2Label: z.string().optional().nullable(),
@@ -458,12 +467,18 @@ export function EventFormClient() {
                   type="number"
                   min="1"
                   {...register('maxCapacity', { 
-                    valueAsNumber: true,
-                    setValueAs: (v) => v === '' ? null : Number(v)
+                    setValueAs: (v) => {
+                      if (v === '' || v === null || v === undefined) return null
+                      const num = Number(v)
+                      return isNaN(num) ? null : num
+                    }
                   })}
                   placeholder="e.g., 20 (for events with limited capacity)"
                   className="mt-1"
                 />
+                {errors.maxCapacity && (
+                  <p className="mt-1 text-sm text-destructive">{errors.maxCapacity.message}</p>
+                )}
                 <p className="mt-1 text-xs text-gray-500">
                   Set a limit for how many people can attend. When full, new registrations will be added to waitlist.
                 </p>
