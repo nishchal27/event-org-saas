@@ -21,20 +21,8 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { organization, isLoaded: orgLoaded } = useOrganization()
-  const { isLoaded: userLoaded } = useUser()
-  
-  const { data: currentOrg } = trpc.organization.getCurrent.useQuery(undefined, {
-    enabled: userLoaded && orgLoaded && !!organization, // Wait for both user and org to be loaded
-    retry: (failureCount, error: any) => {
-      // Retry on UNAUTHORIZED errors (might be timing issue)
-      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
-        return true
-      }
-      return false
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  })
+  const { organization } = useOrganization()
+  const { user } = useUser()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Check if user is admin by email
@@ -64,59 +52,59 @@ export function Sidebar() {
   }, [isMobileMenuOpen])
 
   const sidebarContent = (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border p-4 space-y-3">
-        <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
-        <OrganizationSwitcher
-          hidePersonal
-          afterSelectOrganizationUrl="/dashboard"
-          afterCreateOrganizationUrl="/dashboard"
-        />
-      </div>
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border p-4 space-y-3">
+          <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
+          <OrganizationSwitcher
+            hidePersonal
+            afterSelectOrganizationUrl="/dashboard"
+            afterCreateOrganizationUrl="/dashboard"
+          />
+        </div>
       <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-          return (
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            )
+          })}
+          {/* Admin-only: Analytics Dashboard */}
+          {isAdmin && (
             <Link
-              key={item.href}
-              href={item.href}
+              href="/analytics"
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive
+                pathname === '/analytics' || pathname?.startsWith('/analytics/')
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              <Icon className="h-5 w-5" />
-              {item.label}
+              <BarChart3 className="h-5 w-5" />
+              Analytics
             </Link>
-          )
-        })}
-        {/* Admin-only: Analytics Dashboard */}
-        {isAdmin && (
-          <Link
-            href="/analytics"
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              pathname === '/analytics' || pathname?.startsWith('/analytics/')
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
-          >
-            <BarChart3 className="h-5 w-5" />
-            Analytics
-          </Link>
-        )}
-      </nav>
-      <div className="border-t border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Theme</span>
-          <ThemeToggle />
+          )}
+        </nav>
+        <div className="border-t border-border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Theme</span>
+            <ThemeToggle />
+          </div>
+          <UserButton />
         </div>
-        <UserButton />
       </div>
-    </div>
   )
 
   return (
@@ -164,7 +152,7 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside className="hidden w-64 border-r border-border bg-card md:block">
         {sidebarContent}
-      </aside>
+    </aside>
     </>
   )
 }
