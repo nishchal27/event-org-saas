@@ -6,13 +6,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Plus, Calendar, Users, MessageSquare, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+import { useUser } from '@clerk/nextjs'
 
 export function DashboardClient() {
+  const { isLoaded: userLoaded } = useUser()
+  
   const { data: events, isLoading: eventsLoading } = trpc.event.getAll.useQuery(undefined, {
     staleTime: 60 * 1000,
+    enabled: userLoaded, // Only fetch when user is loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
   const { data: usage } = trpc.subscription.getUsage.useQuery(undefined, {
     staleTime: 2 * 60 * 1000,
+    enabled: userLoaded, // Only fetch when user is loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
   // Analytics dashboard is available at /analytics (admin-only)
   // Removed analytics call from main dashboard to avoid errors

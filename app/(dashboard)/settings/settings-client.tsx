@@ -10,11 +10,23 @@ import { useToast } from '@/hooks/use-toast'
 import { CldUploadWidget } from 'next-cloudinary'
 import { Loader2, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
+import { useUser } from '@clerk/nextjs'
 
 export function SettingsClient() {
   const { toast } = useToast()
   const utils = trpc.useUtils()
-  const { data: organization, isLoading } = trpc.organization.getCurrent.useQuery()
+  const { isLoaded: userLoaded } = useUser()
+  const { data: organization, isLoading } = trpc.organization.getCurrent.useQuery(undefined, {
+    enabled: userLoaded, // Only fetch when user is loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  })
   
   const [logo, setLogo] = useState<string | null>(null)
   const [accentColor, setAccentColor] = useState('#3b82f6')

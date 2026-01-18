@@ -21,11 +21,14 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   const { data: event, isLoading } = trpc.event.getById.useQuery({ id: eventId })
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const isMountedRef = useRef(true)
   const [isScanning, setIsScanning] = useState(false)
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null)
   const [isCheckingPermission, setIsCheckingPermission] = useState(true)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
   const [scanHistory, setScanHistory] = useState<Array<{ qrCode: string; timestamp: Date; success: boolean }>>([])
+  const failedQRCodesRef = useRef<Set<string>>(new Set()) // Track failed QR codes to avoid retrying
+  const isProcessingRef = useRef(false) // Prevent multiple simultaneous processing
 
   const checkInMutation = trpc.attendee.checkInByAttendeeQR.useMutation({
     onSuccess: (data) => {
@@ -75,12 +78,23 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         errorMessage: error.message,
       }, undefined, event?.organizationId)
       
+      // Show user-friendly error messages
+      let errorMessage = error.message
+      if (error.message === 'Invalid QR code') {
+        errorMessage = 'This QR code is not valid for this event. Please scan a valid attendee QR code.'
+      } else if (error.message === 'Already checked in') {
+        errorMessage = 'This attendee has already been checked in.'
+      } else if (error.message.includes('UNAUTHORIZED')) {
+        errorMessage = 'You do not have permission to check in attendees for this event.'
+      }
+      
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Unable to Check In',
+        description: errorMessage,
         variant: 'destructive',
+        duration: 3000, // Show longer for errors
       })
-      setTimeout(() => setLastScanned(null), 2000)
+      setTimeout(() => setLastScanned(null), 3000)
     },
   })
 
@@ -89,6 +103,8 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
     const checkCameraPermission = async () => {
       setIsCheckingPermission(true)
       
+      logger.qrScan.info('Checking camera permission', { eventId })
+      
       // First, try to check permission status without requesting
       if (navigator.permissions && navigator.permissions.query) {
         try {
@@ -96,22 +112,44 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
           const permissionStatus = await navigator.permissions.query({ 
             name: 'camera' as PermissionName 
           } as PermissionDescriptor)
-          setCameraPermission(permissionStatus.state === 'granted')
+          const isGranted = permissionStatus.state === 'granted'
+          setCameraPermission(isGranted)
           setIsCheckingPermission(false)
+          
+          logger.qrScan.info('Camera permission status checked', {
+            eventId,
+            permissionState: permissionStatus.state,
+            granted: isGranted,
+          })
+          
+          trackEvent('qr_scan_permission_checked', {
+            eventId,
+            permissionState: permissionStatus.state,
+            granted: isGranted,
+          }, undefined, event?.organizationId)
           
           // Listen for permission changes
           permissionStatus.onchange = () => {
-            setCameraPermission(permissionStatus.state === 'granted')
+            const newState = permissionStatus.state === 'granted'
+            setCameraPermission(newState)
+            logger.qrScan.info('Camera permission changed', {
+              eventId,
+              newState: permissionStatus.state,
+              granted: newState,
+            })
           }
           
           // If already granted, we're done
-          if (permissionStatus.state === 'granted') {
+          if (isGranted) {
             return
           }
         } catch (err) {
           // Permissions API might not be supported or camera permission not queryable
           // Fall through to getUserMedia
-          console.log('Permissions API not supported or camera not queryable, using getUserMedia')
+          logger.qrScan.info('Permissions API not supported, using getUserMedia', {
+            eventId,
+            error: err instanceof Error ? err.message : String(err),
+          })
         }
       }
       
@@ -122,24 +160,42 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         // Immediately stop the stream - we just wanted to check permission
         stream.getTracks().forEach(track => track.stop())
         setCameraPermission(true)
+        
+        logger.qrScan.info('Camera permission granted via getUserMedia', { eventId })
+        trackEvent('qr_scan_permission_granted', { eventId }, undefined, event?.organizationId)
       } catch (err: any) {
         console.error('Camera permission error:', err)
         setCameraPermission(false)
         
+        const errorName = err?.name || err?.constructor?.name || 'UnknownError'
+        const errorMsg = err?.message || String(err) || 'Unknown error'
+        
+        logger.qrScan.error('Camera permission denied', err instanceof Error ? err : new Error(errorMsg), {
+          eventId,
+          errorType: errorName,
+          errorMessage: errorMsg,
+        })
+        
+        trackEvent('qr_scan_permission_denied', {
+          eventId,
+          errorType: errorName,
+          errorMessage: errorMsg,
+        }, undefined, event?.organizationId)
+        
         // Provide helpful error messages
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
           toast({
             title: 'Camera Permission Denied',
             description: 'Please enable camera access in your browser settings and reload the page.',
             variant: 'destructive',
           })
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
           toast({
             title: 'No Camera Found',
             description: 'Please connect a camera device to use QR scanning.',
             variant: 'destructive',
           })
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
           toast({
             title: 'Camera In Use',
             description: 'Camera is being used by another application. Please close other apps using the camera.',
@@ -152,7 +208,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
     }
     
     checkCameraPermission()
-  }, [toast])
+  }, [toast, eventId, event?.organizationId])
 
   const startScanning = async () => {
     // Stop any existing scanner first
@@ -164,18 +220,59 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       }
     }
 
+    logger.qrScan.info('Starting QR scanner', { eventId })
+
+    // Ensure DOM element exists before proceeding
+    const qrReaderElement = document.getElementById('qr-reader')
+    if (!qrReaderElement) {
+      const error = new Error('QR scanner element not found in DOM')
+      logger.qrScan.error('Failed to start QR scanner - element missing', error, {
+        eventId,
+        errorType: 'DOMError',
+        errorMessage: 'QR scanner element not found',
+      })
+      trackEvent('qr_scan_error', {
+        eventId,
+        errorType: 'DOMError',
+        errorMessage: 'QR scanner element not found',
+      }, undefined, event?.organizationId)
+      toast({
+        title: 'Error Starting Scanner',
+        description: 'Scanner element not found. Please refresh the page and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     // Re-check permission before starting
     try {
+      logger.qrScan.info('Re-checking camera permission before starting', { eventId })
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       // Stop the test stream immediately
       stream.getTracks().forEach(track => track.stop())
       setCameraPermission(true)
+      logger.qrScan.info('Camera permission confirmed', { eventId })
     } catch (err: any) {
       console.error('Camera permission check failed:', err)
       setCameraPermission(false)
+      const errorName = err?.name || err?.constructor?.name || 'UnknownError'
+      const errorMsg = err?.message || String(err) || 'Unknown error'
+      
+      logger.qrScan.error('Camera permission check failed', err instanceof Error ? err : new Error(errorMsg), {
+        eventId,
+        errorType: errorName,
+        errorMessage: errorMsg,
+      })
+      
+      trackEvent('qr_scan_permission_denied', {
+        eventId,
+        errorType: errorName,
+        errorMessage: errorMsg,
+      }, undefined, event?.organizationId)
+      
       toast({
         title: 'Camera Permission Required',
-        description: err.name === 'NotAllowedError' 
+        description: errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError'
           ? 'Please allow camera access in your browser settings and reload the page.'
           : 'Please enable camera access to scan QR codes.',
         variant: 'destructive',
@@ -188,89 +285,333 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       if (scannerRef.current) {
         try {
           await scannerRef.current.clear()
+          logger.qrScan.info('Cleared existing scanner instance', { eventId })
         } catch (err) {
           // Ignore clear errors
+          logger.qrScan.info('Error clearing existing scanner (ignored)', {
+            eventId,
+            error: err instanceof Error ? err.message : String(err),
+          })
         }
+      }
+
+      // Ensure element is visible and has dimensions before initializing
+      const element = document.getElementById('qr-reader')
+      if (!element) {
+        throw new Error('QR scanner element not found')
+      }
+
+      // Wait a brief moment to ensure element is fully rendered
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Check if element has dimensions
+      const rect = element.getBoundingClientRect()
+      logger.qrScan.info('QR scanner element dimensions', {
+        eventId,
+        width: rect.width,
+        height: rect.height,
+      })
+      
+      if (rect.width === 0 || rect.height === 0) {
+        throw new Error('QR scanner element has no dimensions. Please ensure it is visible.')
+      }
+
+      // Clear any React children before html5-qrcode takes over to prevent DOM conflicts
+      // This must happen synchronously before creating the scanner instance
+      const qrElement = document.getElementById('qr-reader')
+      if (qrElement) {
+        // Use innerHTML to completely clear React-managed children
+        // This prevents React from trying to reconcile nodes that html5-qrcode will create
+        qrElement.innerHTML = ''
       }
 
       const html5QrCode = new Html5Qrcode('qr-reader')
       scannerRef.current = html5QrCode
 
       // Try to get available cameras for better device selection
+      let camerasToTry: Array<{ id: string; label: string }> = []
       let cameraId: string | { facingMode: string } = { facingMode: 'environment' }
       
       try {
         const devices = await Html5Qrcode.getCameras()
+        logger.qrScan.info('Enumerated cameras', {
+          eventId,
+          cameraCount: devices?.length || 0,
+          cameras: devices?.map(d => ({ id: d.id, label: d.label })) || [],
+        })
+        
         if (devices && devices.length > 0) {
-          // Prefer back camera on mobile
-          const backCamera = devices.find(device => 
-            device.label.toLowerCase().includes('back') || 
-            device.label.toLowerCase().includes('rear') ||
-            device.label.toLowerCase().includes('environment')
+          // Filter out virtual cameras (OBS, ManyCam, etc.) and prioritize real cameras
+          const virtualCameraKeywords = ['obs', 'virtual', 'manycam', 'snap camera', 'camo', 'droidcam']
+          const realCameras = devices.filter(device => 
+            !virtualCameraKeywords.some(keyword => device.label.toLowerCase().includes(keyword))
           )
-          if (backCamera) {
-            cameraId = backCamera.id
+          const virtualCameras = devices.filter(device => 
+            virtualCameraKeywords.some(keyword => device.label.toLowerCase().includes(keyword))
+          )
+          
+          logger.qrScan.info('Filtered cameras', {
+            eventId,
+            realCameraCount: realCameras.length,
+            virtualCameraCount: virtualCameras.length,
+            realCameras: realCameras.map(d => ({ id: d.id, label: d.label })),
+            virtualCameras: virtualCameras.map(d => ({ id: d.id, label: d.label })),
+          })
+          
+          // Build list of cameras to try, prioritizing real cameras
+          if (realCameras.length > 0) {
+            // Prefer back camera on mobile (real cameras first)
+            const backCamera = realCameras.find(device => 
+              device.label.toLowerCase().includes('back') || 
+              device.label.toLowerCase().includes('rear') ||
+              device.label.toLowerCase().includes('environment')
+            )
+            
+            if (backCamera) {
+              camerasToTry.push({ id: backCamera.id, label: backCamera.label })
+              // Add other real cameras as fallbacks
+              realCameras.forEach(cam => {
+                if (cam.id !== backCamera.id) {
+                  camerasToTry.push({ id: cam.id, label: cam.label })
+                }
+              })
+            } else {
+              // Add all real cameras
+              realCameras.forEach(cam => {
+                camerasToTry.push({ id: cam.id, label: cam.label })
+              })
+            }
+          }
+          
+          // Add virtual cameras as last resort fallbacks
+          virtualCameras.forEach(cam => {
+            camerasToTry.push({ id: cam.id, label: cam.label })
+          })
+          
+          // If we have cameras to try, use the first one
+          if (camerasToTry.length > 0) {
+            cameraId = camerasToTry[0].id
+            logger.qrScan.info('Selected camera', {
+              eventId,
+              cameraId: camerasToTry[0].id,
+              cameraLabel: camerasToTry[0].label,
+              totalCamerasToTry: camerasToTry.length,
+            })
           } else {
-            // Use last camera (usually back camera on mobile)
+            // Fallback: use last camera from original list
             cameraId = devices[devices.length - 1].id
+            camerasToTry.push({ id: cameraId as string, label: devices[devices.length - 1].label })
+            logger.qrScan.info('Selected last camera (no real cameras found)', {
+              eventId,
+              cameraId: devices[devices.length - 1].id,
+              cameraLabel: devices[devices.length - 1].label,
+            })
           }
         }
       } catch (err) {
-        console.log('Could not enumerate cameras, using default:', err)
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        logger.qrScan.info('Could not enumerate cameras, using default', {
+          eventId,
+          error: errorMsg,
+        })
         // Fall back to facingMode
         cameraId = { facingMode: 'environment' }
       }
 
-      await html5QrCode.start(
-        cameraId,
-        {
-          fps: 10,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            // Make QR box responsive
-            const minEdgePercentage = 0.7
-            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
-            const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage)
-            return {
-              width: qrboxSize,
-              height: qrboxSize
+      // Try to start with the selected camera, with fallback to other cameras
+      let started = false
+      let lastError: any = null
+      
+      // If we have multiple cameras to try, attempt each one
+      // If cameraId is a facingMode object, we'll try it directly
+      const camerasToAttempt = camerasToTry.length > 0 
+        ? camerasToTry 
+        : (typeof cameraId === 'string' 
+          ? [{ id: cameraId, label: 'Unknown' }]
+          : []) // Empty array means we'll use facingMode directly
+      
+      // If we have cameras to attempt, try each one
+      if (camerasToAttempt.length > 0) {
+        for (let i = 0; i < camerasToAttempt.length; i++) {
+          const currentCamera = camerasToAttempt[i]
+          const currentCameraId = currentCamera.id
+          
+          try {
+            logger.qrScan.info(`Attempting to start with camera ${i + 1}/${camerasToAttempt.length}`, {
+              eventId,
+              cameraId: currentCameraId,
+              cameraLabel: currentCamera.label,
+              attempt: i + 1,
+              totalAttempts: camerasToAttempt.length,
+            })
+            
+            await html5QrCode.start(
+              currentCameraId,
+            {
+              fps: 10,
+              qrbox: (viewfinderWidth, viewfinderHeight) => {
+                // Make QR box responsive with minimum 50px size (html5-qrcode requirement)
+                // Use larger box (0.8) for better mobile screen detection
+                const minEdgePercentage = 0.8
+                const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
+                const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage))
+                return {
+                  width: qrboxSize,
+                  height: qrboxSize
+                }
+              },
+              aspectRatio: 1.0,
+              disableFlip: false,
+            },
+            (decodedText) => {
+              // Success callback
+              handleQRScan(decodedText)
+            },
+            (errorMessage) => {
+              // Error callback - log scanning errors (but continue scanning)
+              // Only log if it's not a common "not found" error
+              if (!errorMessage.includes('No QR code found') && !errorMessage.includes('NotFoundException')) {
+                logger.qrScan.info('QR scanning error (continuing)', {
+                  eventId,
+                  errorMessage,
+                })
+              }
             }
-          },
-          aspectRatio: 1.0,
-          disableFlip: false,
-        },
-        (decodedText) => {
-          // Success callback
-          handleQRScan(decodedText)
-        },
-        (errorMessage) => {
-          // Error callback - ignore scanning errors, just keep scanning
-          // Only log if it's not a common "not found" error
-          if (!errorMessage.includes('No QR code found')) {
-            // Silently continue scanning
+          )
+          
+            // Success! Update cameraId for logging
+            cameraId = currentCameraId
+            started = true
+            logger.qrScan.info('Successfully started with camera', {
+              eventId,
+              cameraId: currentCameraId,
+              cameraLabel: currentCamera.label,
+              attempt: i + 1,
+            })
+            break
+          } catch (err: any) {
+            lastError = err
+            logger.qrScan.info(`Failed to start with camera ${i + 1}`, {
+              eventId,
+              cameraId: currentCameraId,
+              cameraLabel: currentCamera.label,
+              attempt: i + 1,
+              error: err instanceof Error ? err.message : String(err),
+              errorName: err?.name || 'Unknown',
+            })
+            
+            // If this isn't the last camera, try the next one
+            if (i < camerasToAttempt.length - 1) {
+              logger.qrScan.info('Trying next camera as fallback', {
+                eventId,
+                nextCamera: camerasToAttempt[i + 1].label,
+              })
+              // Clear the scanner before trying next camera
+              try {
+                await html5QrCode.clear()
+              } catch (clearErr) {
+                // Ignore clear errors
+              }
+              continue
+            }
           }
         }
-      )
+      } else {
+        // No cameras enumerated, try with facingMode
+        try {
+          logger.qrScan.info('Attempting to start with facingMode (no cameras enumerated)', {
+            eventId,
+            facingMode: typeof cameraId === 'object' ? cameraId.facingMode : 'unknown',
+          })
+          
+          await html5QrCode.start(
+            cameraId,
+            {
+              fps: 10,
+              qrbox: (viewfinderWidth, viewfinderHeight) => {
+                // Make QR box responsive with minimum 50px size (html5-qrcode requirement)
+                // Use larger box (0.8) for better mobile screen detection
+                const minEdgePercentage = 0.8
+                const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
+                const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage))
+                return {
+                  width: qrboxSize,
+                  height: qrboxSize
+                }
+              },
+              aspectRatio: 1.0,
+              disableFlip: false,
+            },
+            (decodedText) => {
+              // Success callback
+              handleQRScan(decodedText)
+            },
+            (errorMessage) => {
+              // Error callback - log scanning errors (but continue scanning)
+              // Only log if it's not a common "not found" error
+              if (!errorMessage.includes('No QR code found') && !errorMessage.includes('NotFoundException')) {
+                logger.qrScan.info('QR scanning error (continuing)', {
+                  eventId,
+                  errorMessage,
+                })
+              }
+            }
+          )
+          
+          started = true
+          logger.qrScan.info('Successfully started with facingMode', {
+            eventId,
+            facingMode: typeof cameraId === 'object' ? cameraId.facingMode : 'unknown',
+          })
+        } catch (err: any) {
+          lastError = err
+          logger.qrScan.error('Failed to start with facingMode', err instanceof Error ? err : new Error(String(err)), {
+            eventId,
+            error: err instanceof Error ? err.message : String(err),
+            errorName: err?.name || 'Unknown',
+          })
+        }
+      }
+      
+      // If we couldn't start with any camera, throw the last error
+      if (!started) {
+        throw lastError || new Error('Failed to start scanner with any available camera')
+      }
 
+      // Clear processing state and failed QR codes when starting fresh
+      isProcessingRef.current = false
+      failedQRCodesRef.current.clear()
+      
       setIsScanning(true)
       
       // Track successful scan start
-      trackEvent('qr_scan_started', { eventId }, undefined, event?.organizationId)
-      logger.qrScan.info('QR scanner started', { eventId })
-    } catch (err: any) {
-      const error = err instanceof Error ? err : new Error(String(err))
+      logger.qrScan.info('QR scanner started successfully', {
+        eventId,
+        cameraId: typeof cameraId === 'string' ? cameraId : cameraId.facingMode,
+      })
       
-      // Log error
+      trackEvent('qr_scan_started', {
+        eventId,
+        cameraId: typeof cameraId === 'string' ? cameraId : cameraId.facingMode,
+      }, undefined, event?.organizationId)
+    } catch (err: any) {
+      // Properly extract error information from different error types
+      const errorName = err?.name || err?.constructor?.name || (err instanceof Error ? err.name : 'UnknownError')
+      const errorMessage = err?.message || String(err) || 'Unknown error occurred'
+      const error = err instanceof Error ? err : new Error(errorMessage)
+      
+      // Log error with proper error information
       logger.qrScan.error('Failed to start QR scanner', error, {
         eventId,
-        errorType: err.name,
-        errorMessage: err.message,
+        errorType: errorName,
+        errorMessage: errorMessage,
       })
       
       // Track error
       trackEvent('qr_scan_error', {
         eventId,
-        errorType: err.name,
-        errorMessage: err.message,
+        errorType: errorName,
+        errorMessage: errorMessage,
       }, undefined, event?.organizationId)
       
       // Clean up on error
@@ -285,62 +626,245 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       
       setIsScanning(false)
       
-      let errorMessage = 'Failed to start camera. Please check permissions and try again.'
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings and reload the page.'
+      // Determine user-friendly error message
+      let userErrorMessage = 'Failed to start camera. Please check permissions and try again.'
+      if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+        userErrorMessage = 'Camera permission denied. Please allow camera access in your browser settings and reload the page.'
         setCameraPermission(false)
         trackEvent('qr_scan_permission_denied', { eventId }, undefined, event?.organizationId)
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = 'No camera found. Please connect a camera device.'
-      } else if (err.name === 'NotReadableError') {
-        errorMessage = 'Camera is being used by another application. Please close other apps using the camera.'
-      } else if (err.message) {
-        errorMessage = err.message
+      } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        userErrorMessage = 'No camera found. Please connect a camera device.'
+      } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        userErrorMessage = 'Camera is being used by another application. Please close other apps using the camera.'
+      } else if (errorName === 'OverconstrainedError' || errorName === 'ConstraintNotSatisfiedError') {
+        userErrorMessage = 'Camera constraints not supported. Please try a different camera or browser.'
+      } else if (errorMessage && errorMessage !== 'Unknown error occurred') {
+        // Use the actual error message if available and meaningful
+        userErrorMessage = errorMessage
       }
       
       toast({
         title: 'Error Starting Scanner',
-        description: errorMessage,
+        description: userErrorMessage,
         variant: 'destructive',
       })
     }
   }
 
   const stopScanning = async () => {
-    if (scannerRef.current) {
-      try {
-        // Stop the scanner
-        await scannerRef.current.stop()
-        // Clear the scanner
-        await scannerRef.current.clear()
-      } catch (err) {
-        console.error('Error stopping scanner:', err)
-        // Try to clear even if stop failed
-        try {
-          await scannerRef.current.clear()
-        } catch (clearErr) {
-          console.error('Error clearing scanner:', clearErr)
-        }
-      }
-      scannerRef.current = null
-    }
+    logger.qrScan.info('Stopping QR scanner', { eventId })
     
-    // Stop any media streams
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop()
-      })
-      streamRef.current = null
-    }
-    
+    // Immediately update state to prevent new scans
     setIsScanning(false)
+    isProcessingRef.current = false
+    
+    // Stop scanner with timeout to prevent hanging
+    const stopPromise = (async () => {
+      if (scannerRef.current) {
+        try {
+          // Try to resume first if paused (some versions require this before stop)
+          try {
+            const scanner = scannerRef.current as any
+            if (scanner.getState && typeof scanner.getState === 'function') {
+              const state = scanner.getState()
+              if (state === 'PAUSED') {
+                await scannerRef.current.resume()
+                // Give it a moment to resume
+                await new Promise(resolve => setTimeout(resolve, 100))
+              }
+            }
+          } catch {
+            // Ignore resume errors - might not be paused or method not available
+          }
+          
+          // Stop the scanner
+          await scannerRef.current.stop()
+          logger.qrScan.info('QR scanner stopped', { eventId })
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          logger.qrScan.info('Error stopping scanner (continuing cleanup)', {
+            eventId,
+            errorMessage: errorMsg,
+          })
+        }
+        
+        // Clear the scanner DOM - let html5-qrcode handle it completely
+        try {
+          // Just call clear() - html5-qrcode will handle DOM cleanup
+          await scannerRef.current.clear()
+          logger.qrScan.info('QR scanner cleared successfully', { eventId })
+        } catch (clearErr) {
+          const clearErrorMsg = clearErr instanceof Error ? clearErr.message : String(clearErr)
+          logger.qrScan.info('Error clearing scanner (non-critical)', {
+            eventId,
+            errorMessage: clearErrorMsg,
+          })
+        }
+        
+        scannerRef.current = null
+      }
+      
+      // Stop any media streams
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop()
+        })
+        streamRef.current = null
+      }
+    })()
+    
+    // Add timeout to force completion
+    try {
+      await Promise.race([
+        stopPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Stop timeout')), 3000)
+        )
+      ])
+    } catch (err) {
+      logger.qrScan.info('Stop scanner timeout or error, forcing cleanup', {
+        eventId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      // Force cleanup even on timeout
+      if (scannerRef.current) {
+        scannerRef.current = null
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }
+    
+    trackEvent('qr_scan_stopped', { eventId }, undefined, event?.organizationId)
   }
 
   const handleQRScan = (qrCode: string) => {
-    // Prevent duplicate scans within 2 seconds
-    if (scanHistory.some((s) => s.qrCode === qrCode && Date.now() - s.timestamp.getTime() < 2000)) {
+    // Extract attendee QR code from URL if it's a check-in URL
+    // QR codes from the public page are URLs like: https://event-org-sa.../checkin/att-xxx-xxx
+    let attendeeQrCode = qrCode.trim()
+    
+    try {
+      // If it's a URL, extract the code from the path
+      if (attendeeQrCode.startsWith('http://') || attendeeQrCode.startsWith('https://')) {
+        const url = new URL(attendeeQrCode)
+        const pathParts = url.pathname.split('/').filter(Boolean)
+        
+        // Check if it's a checkin URL: /checkin/{code}
+        if (pathParts.length >= 2 && pathParts[0] === 'checkin') {
+          attendeeQrCode = pathParts[1]
+          logger.qrScan.info('Extracted attendee QR code from URL', {
+            eventId,
+            originalUrl: qrCode.substring(0, 50) + '...',
+            extractedCode: attendeeQrCode.substring(0, 20) + '...',
+          })
+        } else if (pathParts.length === 1 && pathParts[0].startsWith('att-')) {
+          // Sometimes the URL might be just /att-xxx-xxx
+          attendeeQrCode = pathParts[0]
+          logger.qrScan.info('Extracted attendee QR code from URL path', {
+            eventId,
+            extractedCode: attendeeQrCode.substring(0, 20) + '...',
+          })
+        }
+      } else if (attendeeQrCode.includes('/checkin/')) {
+        // Handle relative URLs like /checkin/att-xxx-xxx
+        const match = attendeeQrCode.match(/\/checkin\/([^\/\s]+)/)
+        if (match && match[1]) {
+          attendeeQrCode = match[1]
+          logger.qrScan.info('Extracted attendee QR code from relative URL', {
+            eventId,
+            extractedCode: attendeeQrCode.substring(0, 20) + '...',
+          })
+        }
+      }
+    } catch (err) {
+      // If URL parsing fails, use the original code
+      logger.qrScan.info('Could not parse QR code as URL, using as-is', {
+        eventId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+
+    // Validate that we have a valid attendee QR code format (starts with 'att-')
+    if (!attendeeQrCode.startsWith('att-')) {
+      logger.qrScan.error('Invalid QR code format - does not start with att-', new Error('Invalid QR code format'), {
+        eventId,
+        qrCode: attendeeQrCode.substring(0, 50) + '...',
+      })
+      
+      // Clear processing flag
+      isProcessingRef.current = false
+      
+      // Show error
+      toast({
+        title: 'Invalid QR Code',
+        description: 'This QR code is not a valid attendee QR code. Please scan an attendee QR code from the event.',
+        variant: 'destructive',
+        duration: 4000,
+      })
+      
+      // Resume scanning after error
+      setTimeout(() => {
+        if (!isMountedRef.current || !isScanning) return
+        if (scannerRef.current) {
+          try {
+            scannerRef.current.resume()
+          } catch {
+            if (isMountedRef.current && isScanning) {
+              startScanning()
+            }
+          }
+        }
+      }, 2000)
+      
       return
     }
+
+    // Use the original qrCode for tracking failed codes (to handle URL variations)
+    const originalQrCode = qrCode.trim()
+
+    // Prevent processing if already processing another QR code
+    if (isProcessingRef.current) {
+      logger.qrScan.info('Already processing a QR code, ignoring new scan', {
+        eventId,
+        qrCode: attendeeQrCode.substring(0, 20) + '...',
+      })
+      return
+    }
+
+    // Check if this QR code recently failed (within last 10 seconds) - check both original and extracted
+    if (failedQRCodesRef.current.has(originalQrCode) || failedQRCodesRef.current.has(attendeeQrCode)) {
+      logger.qrScan.info('QR code recently failed, ignoring to prevent spam', {
+        eventId,
+        qrCode: attendeeQrCode.substring(0, 20) + '...',
+      })
+      return
+    }
+
+    // Prevent duplicate scans within 2 seconds
+    if (scanHistory.some((s) => (s.qrCode === originalQrCode || s.qrCode === attendeeQrCode) && Date.now() - s.timestamp.getTime() < 2000)) {
+      logger.qrScan.info('Duplicate QR scan detected, ignoring', {
+        eventId,
+        qrCode: attendeeQrCode.substring(0, 20) + '...', // Log partial QR code for privacy
+      })
+      return
+    }
+
+    // Set processing flag
+    isProcessingRef.current = true
+
+    // Log QR code detection
+    logger.qrScan.info('QR code detected', {
+      eventId,
+      qrCodeLength: attendeeQrCode.length,
+      qrCodePrefix: attendeeQrCode.substring(0, 20) + '...', // Log partial QR code for privacy
+      isFromUrl: originalQrCode !== attendeeQrCode,
+    })
+    
+    trackEvent('qr_scan_detected', {
+      eventId,
+      qrCodeLength: attendeeQrCode.length,
+    }, undefined, event?.organizationId)
 
     // Pause scanning temporarily to show feedback
     if (scannerRef.current && isScanning) {
@@ -348,36 +872,81 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         scannerRef.current.pause()
       } catch (err) {
         // Ignore pause errors - pause might not be available in all versions
+        logger.qrScan.info('Could not pause scanner (may not be supported)', {
+          eventId,
+          error: err instanceof Error ? err.message : String(err),
+        })
       }
     }
 
+    logger.qrScan.info('Processing QR code check-in', {
+      eventId,
+      qrCodeLength: attendeeQrCode.length,
+      attendeeQrCode: attendeeQrCode.substring(0, 20) + '...',
+    })
+
     checkInMutation.mutate(
-      { attendeeQrCode: qrCode },
+      { attendeeQrCode: attendeeQrCode },
       {
         onSuccess: () => {
+          // Remove from failed list if it was there (check both original and extracted)
+          failedQRCodesRef.current.delete(originalQrCode)
+          failedQRCodesRef.current.delete(attendeeQrCode)
+          
+          // Clear processing flag
+          isProcessingRef.current = false
+          
+          logger.qrScan.info('QR code check-in mutation successful, resuming scanner', { eventId })
+          
           // Resume scanning after successful check-in
           setTimeout(() => {
-            if (scannerRef.current && isScanning) {
+            if (!isMountedRef.current || !isScanning) return
+            if (scannerRef.current) {
               try {
                 scannerRef.current.resume()
+                logger.qrScan.info('Scanner resumed after successful check-in', { eventId })
               } catch {
                 // If resume fails, restart scanner
-                startScanning()
+                if (isMountedRef.current && isScanning) {
+                  logger.qrScan.info('Resume failed, restarting scanner', { eventId })
+                  startScanning()
+                }
               }
             }
           }, 2000)
         },
-        onError: () => {
-          // Resume scanning after error
+        onError: (error) => {
+          // Add to failed list for 10 seconds (add both original and extracted)
+          failedQRCodesRef.current.add(originalQrCode)
+          failedQRCodesRef.current.add(attendeeQrCode)
           setTimeout(() => {
-            if (scannerRef.current && isScanning) {
+            failedQRCodesRef.current.delete(originalQrCode)
+            failedQRCodesRef.current.delete(attendeeQrCode)
+          }, 10000)
+          
+          // Clear processing flag
+          isProcessingRef.current = false
+          
+          logger.qrScan.info('QR code check-in mutation failed, resuming scanner', { 
+            eventId,
+            errorMessage: error.message,
+          })
+          
+          // Resume scanning after error (with longer delay for invalid codes)
+          setTimeout(() => {
+            if (!isMountedRef.current || !isScanning) return
+            if (scannerRef.current) {
               try {
                 scannerRef.current.resume()
+                logger.qrScan.info('Scanner resumed after check-in error', { eventId })
               } catch {
-                startScanning()
+                if (isMountedRef.current && isScanning) {
+                  logger.qrScan.info('Resume failed after error, restarting scanner', { eventId })
+                  startScanning()
+                }
               }
             }
-          }, 2000)
+          }, 3000) // Longer delay for errors to show feedback
         },
       }
     )
@@ -386,26 +955,42 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Cleanup scanner
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {
-          // Ignore errors during cleanup
-        })
-        try {
-          scannerRef.current.clear()
-        } catch (err) {
-          // Ignore errors during cleanup
+      // Mark component as unmounted to prevent state updates
+      isMountedRef.current = false
+      
+      // Cleanup scanner - use async cleanup but don't wait
+      const cleanupScanner = async () => {
+        if (scannerRef.current) {
+          try {
+            // Stop the scanner
+            await scannerRef.current.stop()
+          } catch (err) {
+            // Ignore stop errors during cleanup
+          }
+          
+          try {
+            // Clear the scanner DOM - let html5-qrcode handle it
+            await scannerRef.current.clear()
+          } catch (err) {
+            // Ignore clear errors during cleanup
+          }
+          
+          scannerRef.current = null
         }
-        scannerRef.current = null
+        
+        // Cleanup media streams
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => {
+            track.stop()
+          })
+          streamRef.current = null
+        }
       }
       
-      // Cleanup media streams
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop()
-        })
-        streamRef.current = null
-      }
+      // Run cleanup but don't block
+      cleanupScanner().catch(() => {
+        // Ignore any cleanup errors
+      })
     }
   }, [])
 
@@ -528,14 +1113,9 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                   <>
                     {/* Scanner View */}
                     <div className="relative">
-                      <div
-                        id="qr-reader"
-                        className={cn(
-                          'w-full rounded-lg overflow-hidden bg-black',
-                          isScanning ? 'min-h-[400px]' : 'min-h-[300px] flex items-center justify-center'
-                        )}
-                      >
-                        {!isScanning && (
+                      {/* Placeholder shown when not scanning - separate from qr-reader to avoid DOM conflicts */}
+                      {!isScanning && !scannerRef.current && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black rounded-lg z-10">
                           <div className="text-center text-white p-8">
                             <Camera className="mx-auto h-16 w-16 mb-4 opacity-50" />
                             <p className="text-lg font-medium">Camera Ready</p>
@@ -543,8 +1123,16 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                               Click "Start Scanning" to begin
                             </p>
                           </div>
+                        </div>
+                      )}
+                      <div
+                        id="qr-reader"
+                        suppressHydrationWarning
+                        className={cn(
+                          'w-full rounded-lg overflow-hidden bg-black',
+                          isScanning ? 'min-h-[400px]' : 'min-h-[300px]'
                         )}
-                      </div>
+                      />
 
                       {/* Scan Feedback Overlay */}
                       <AnimatePresence>
@@ -578,7 +1166,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                     </div>
 
                     {/* Control Buttons */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 relative z-20">
                       {!isScanning ? (
                         <Button
                           onClick={startScanning}
@@ -590,10 +1178,47 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                         </Button>
                       ) : (
                         <Button
-                          onClick={stopScanning}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            
+                            console.log('[QR Scanner] Stop button clicked', { isScanning, hasScanner: !!scannerRef.current })
+                            logger.qrScan.info('Stop button clicked', { eventId, isScanning })
+                            
+                            // Immediately update UI
+                            setIsScanning(false)
+                            isProcessingRef.current = false
+                            failedQRCodesRef.current.clear()
+                            
+                            // Stop scanning asynchronously (don't await to keep UI responsive)
+                            stopScanning().catch((err) => {
+                              logger.qrScan.error('Error stopping scanner from button', err instanceof Error ? err : new Error(String(err)), {
+                                eventId,
+                              })
+                              // Force cleanup on error
+                              if (scannerRef.current) {
+                                try {
+                                  scannerRef.current.stop().catch(() => {})
+                                } catch {
+                                  // Ignore
+                                }
+                                try {
+                                  scannerRef.current.clear()
+                                } catch {
+                                  // Ignore
+                                }
+                                scannerRef.current = null
+                              }
+                              if (streamRef.current) {
+                                streamRef.current.getTracks().forEach(track => track.stop())
+                                streamRef.current = null
+                              }
+                            })
+                          }}
                           variant="destructive"
                           className="flex-1"
                           size="lg"
+                          type="button"
                         >
                           <XCircle className="mr-2 h-5 w-5" />
                           Stop Scanning
