@@ -1,6 +1,6 @@
 'use client'
 
-import { CreateOrganization, OrganizationSwitcher, useOrganizationList } from '@clerk/nextjs'
+import { CreateOrganization, OrganizationSwitcher, useOrganizationList, useOrganization } from '@clerk/nextjs'
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -12,17 +12,37 @@ export default function CreateOrganizationPage() {
       infinite: true,
     },
   })
+  const { organization, isLoaded: isOrgLoaded } = useOrganization()
 
   useEffect(() => {
     // If user already has organizations and is loaded, redirect to dashboard
-    if (isLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0 && !hasRedirected.current) {
+    // Give a small delay to allow webhook processing
+    if (
+      isLoaded && 
+      isOrgLoaded &&
+      userMemberships && 
+      userMemberships.data && 
+      userMemberships.data.length > 0 && 
+      !hasRedirected.current
+    ) {
       hasRedirected.current = true
-      router.push('/dashboard')
+      // Small delay to ensure webhook has processed
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
     }
-  }, [isLoaded, userMemberships, router])
+    
+    // Also check if organization is set (even if memberships list hasn't updated)
+    if (isOrgLoaded && organization && !hasRedirected.current) {
+      hasRedirected.current = true
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
+    }
+  }, [isLoaded, isOrgLoaded, userMemberships, organization, router])
 
   // Show loading while checking organization status
-  if (!isLoaded) {
+  if (!isLoaded || !isOrgLoaded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -33,9 +53,28 @@ export default function CreateOrganizationPage() {
     )
   }
 
-  // If user already has organizations, don't show create form (redirect will happen)
+  // If user already has organizations, show loading while redirect happens
   if (userMemberships && userMemberships.data && userMemberships.data.length > 0) {
-    return null
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If organization exists but memberships haven't loaded yet, also redirect
+  if (organization) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

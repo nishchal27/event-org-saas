@@ -6,7 +6,6 @@ import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X } from 
 import { cn } from '@/lib/utils'
 import { OrganizationSwitcher, UserButton, useOrganization, useUser } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { trpc } from '@/lib/trpc-client'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
@@ -38,8 +37,14 @@ export function Sidebar() {
   })
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  // Check if user is admin
-  const isAdmin = currentOrg?.role === 'admin' || currentOrg?.role === 'org:admin'
+  // Check if user is admin by email
+  const adminEmailsEnv = process.env.NEXT_PUBLIC_ADMIN_EMAILS || ''
+  const adminEmails = adminEmailsEnv
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(email => email.length > 0)
+  const userEmail = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase().trim() || ''
+  const isAdmin = adminEmails.length > 0 && userEmail && adminEmails.includes(userEmail)
 
   // Close mobile menu when route changes
   useEffect(() => {
