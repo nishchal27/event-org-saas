@@ -21,8 +21,20 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { organization } = useOrganization()
-  const { user } = useUser()
+  const { organization, isLoaded: orgLoaded } = useOrganization()
+  const { isLoaded: userLoaded } = useUser()
+  
+  const { data: currentOrg } = trpc.organization.getCurrent.useQuery(undefined, {
+    enabled: userLoaded && orgLoaded && !!organization, // Wait for both user and org to be loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  })
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Check if user is admin by email

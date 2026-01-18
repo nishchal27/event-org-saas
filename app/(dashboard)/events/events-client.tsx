@@ -18,11 +18,13 @@ import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { useUser } from '@clerk/nextjs'
 
 export function EventsClient() {
   const router = useRouter()
   const { toast } = useToast()
   const utils = trpc.useUtils()
+  const { isLoaded: userLoaded } = useUser()
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [daysOffset, setDaysOffset] = useState(7)
@@ -30,6 +32,15 @@ export function EventsClient() {
   const { data: events, isLoading } = trpc.event.getAll.useQuery(undefined, {
     // Events list is fresh for 1 minute
     staleTime: 60 * 1000,
+    enabled: userLoaded, // Only fetch when user is loaded
+    retry: (failureCount, error: any) => {
+      // Retry on UNAUTHORIZED errors (might be timing issue)
+      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
+        return true
+      }
+      return false
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
   const duplicateMutation = trpc.event.duplicate.useMutation({
     onSuccess: (newEvent) => {
