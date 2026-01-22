@@ -30,22 +30,37 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   const [lastScanned, setLastScanned] = useState<string | null>(null)
   const [scanHistory, setScanHistory] = useState<Array<{ qrCode: string; timestamp: Date; success: boolean }>>([])
   const [successData, setSuccessData] = useState<{ name: string; timestamp: Date } | null>(null) // Success modal data
+  const [errorType, setErrorType] = useState<'invalid' | 'already_checked_in' | 'unauthorized' | 'unknown' | null>(null) // Error classification
   const failedQRCodesRef = useRef<Set<string>>(new Set()) // Track failed QR codes to avoid retrying
   const isProcessingRef = useRef(false) // Prevent multiple simultaneous processing
+  const lastHapticRef = useRef<{ type: string; timestamp: number } | null>(null) // Prevent duplicate haptics
 
-  // Haptic feedback helper
-  const triggerHaptic = (type: 'success' | 'error' | 'light' = 'light') => {
+  // Haptic feedback helper - ensures single vibration per result
+  const triggerHaptic = (type: 'success' | 'error' | 'already_checked_in' | 'invalid') => {
     if ('vibrate' in navigator) {
       try {
+        const now = Date.now()
+        // Prevent duplicate haptics within 500ms
+        if (lastHapticRef.current && 
+            lastHapticRef.current.type === type && 
+            now - lastHapticRef.current.timestamp < 500) {
+          return
+        }
+        
+        lastHapticRef.current = { type, timestamp: now }
+        
         if (type === 'success') {
           // Success pattern: short-long-short
           navigator.vibrate([50, 30, 100, 30, 50])
-        } else if (type === 'error') {
-          // Error pattern: three short pulses
-          navigator.vibrate([50, 30, 50, 30, 50])
+        } else if (type === 'already_checked_in') {
+          // Already checked in: two medium pulses (distinct from error)
+          navigator.vibrate([80, 50, 80])
+        } else if (type === 'invalid') {
+          // Invalid QR: single longer pulse
+          navigator.vibrate([100])
         } else {
-          // Light feedback: single short pulse
-          navigator.vibrate(50)
+          // Generic error: three short pulses
+          navigator.vibrate([50, 30, 50, 30, 50])
         }
       } catch (err) {
         // Ignore vibration errors
@@ -80,53 +95,84 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       
       utils.event.getById.invalidate({ id: eventId })
       
-      // Hide success modal after 3 seconds
+      // Hide success modal after 3 seconds and resume scanning
       setTimeout(() => {
         setSuccessData(null)
         setLastScanned(null)
+        setIsDetecting(false)
+        // Resume scanning if still active
+        if (isScanning && scannerRef.current) {
+          try {
+            scannerRef.current.resume()
+          } catch {
+            // Ignore resume errors - scanner might have been stopped
+          }
+        }
       }, 3000)
     },
     onError: (error) => {
       setIsDetecting(false)
+      
+      // Classify error type for appropriate feedback
+      let classifiedErrorType: 'invalid' | 'already_checked_in' | 'unauthorized' | 'unknown' = 'unknown'
+      let errorMessage = error.message
+      
+      if (error.message === 'Invalid QR code' || error.message.includes('not valid')) {
+        classifiedErrorType = 'invalid'
+        errorMessage = 'This QR code is not valid for this event. Please scan a valid attendee QR code.'
+      } else if (error.message === 'Already checked in' || error.message.includes('already been checked')) {
+        classifiedErrorType = 'already_checked_in'
+        errorMessage = 'This attendee has already been checked in.'
+      } else if (error.message.includes('UNAUTHORIZED') || error.message.includes('permission')) {
+        classifiedErrorType = 'unauthorized'
+        errorMessage = 'You do not have permission to check in attendees for this event.'
+      }
+      
+      setErrorType(classifiedErrorType)
       setLastScanned('error')
       setScanHistory((prev) => [
         { qrCode: 'error', timestamp: new Date(), success: false },
         ...prev.slice(0, 4),
       ])
       
-      // Trigger haptic feedback for error
-      triggerHaptic('error')
+      // Trigger appropriate haptic feedback based on error type
+      if (classifiedErrorType === 'already_checked_in') {
+        triggerHaptic('already_checked_in')
+      } else if (classifiedErrorType === 'invalid') {
+        triggerHaptic('invalid')
+      } else {
+        triggerHaptic('error')
+      }
       
       // Track error
       const errorObj = error instanceof Error ? error : new Error(error.message)
       logger.checkIn.error('QR scan check-in failed', errorObj, {
         eventId,
         errorMessage: error.message,
+        errorType: classifiedErrorType,
       })
       
       trackEvent('check_in_error', {
         eventId,
         errorType: 'qr_scan',
         errorMessage: error.message,
+        classifiedErrorType,
       }, undefined, event?.organizationId)
       
-      // Show user-friendly error messages
-      let errorMessage = error.message
-      if (error.message === 'Invalid QR code') {
-        errorMessage = 'This QR code is not valid for this event. Please scan a valid attendee QR code.'
-      } else if (error.message === 'Already checked in') {
-        errorMessage = 'This attendee has already been checked in.'
-      } else if (error.message.includes('UNAUTHORIZED')) {
-        errorMessage = 'You do not have permission to check in attendees for this event.'
-      }
-      
       toast({
-        title: 'Unable to Check In',
+        title: classifiedErrorType === 'already_checked_in' 
+          ? 'Already Checked In' 
+          : 'Unable to Check In',
         description: errorMessage,
         variant: 'destructive',
         duration: 3000, // Show longer for errors
       })
-      setTimeout(() => setLastScanned(null), 3000)
+      
+      // Clear error state after delay
+      setTimeout(() => {
+        setLastScanned(null)
+        setErrorType(null)
+      }, 3000)
     },
   })
 
@@ -503,8 +549,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
               },
             },
             (decodedText) => {
-              // Success callback - trigger light haptic on detection
-              triggerHaptic('light')
+              // Success callback - NO haptic here, only on final outcomes
               handleQRScan(decodedText)
             },
             (errorMessage) => {
@@ -588,8 +633,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
               },
             },
             (decodedText) => {
-              // Success callback - trigger light haptic on detection
-              triggerHaptic('light')
+              // Success callback - NO haptic here, only on final outcomes
               handleQRScan(decodedText)
             },
             (errorMessage) => {
@@ -627,6 +671,9 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       // Clear processing state and failed QR codes when starting fresh
       isProcessingRef.current = false
       failedQRCodesRef.current.clear()
+      setIsDetecting(false)
+      setLastScanned(null)
+      setErrorType(null)
       
       setIsInitializing(false)
       setIsScanning(true)
@@ -704,6 +751,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
     
     // Immediately update state to prevent new scans
     setIsScanning(false)
+    setIsDetecting(false) // Clear detecting state
     isProcessingRef.current = false
     
     // Stop scanner with timeout to prevent hanging
@@ -843,19 +891,28 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         qrCode: attendeeQrCode.substring(0, 50) + '...',
       })
       
-      // Clear processing flag
+      // Clear processing flag and detecting state
       isProcessingRef.current = false
+      setIsDetecting(false)
+      setErrorType('invalid')
+      setLastScanned('error')
+      
+      // Trigger haptic for invalid QR format
+      triggerHaptic('invalid')
       
       // Show error
       toast({
         title: 'Invalid QR Code',
         description: 'This QR code is not a valid attendee QR code. Please scan an attendee QR code from the event.',
         variant: 'destructive',
-        duration: 4000,
+        duration: 3000,
       })
       
-      // Resume scanning after error
+      // Clear error state and resume scanning after delay
       setTimeout(() => {
+        setLastScanned(null)
+        setErrorType(null)
+        
         if (!isMountedRef.current || !isScanning) return
         if (scannerRef.current) {
           try {
@@ -866,7 +923,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
             }
           }
         }
-      }, 2000)
+      }, 2500)
       
       return
     }
@@ -880,6 +937,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         eventId,
         qrCode: attendeeQrCode.substring(0, 20) + '...',
       })
+      // Don't clear detecting state here - let the current process handle it
       return
     }
 
@@ -889,6 +947,8 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         eventId,
         qrCode: attendeeQrCode.substring(0, 20) + '...',
       })
+      // Clear detecting state for recently failed code
+      setIsDetecting(false)
       return
     }
 
@@ -898,6 +958,8 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         eventId,
         qrCode: attendeeQrCode.substring(0, 20) + '...', // Log partial QR code for privacy
       })
+      // Clear detecting state for duplicate
+      setIsDetecting(false)
       return
     }
 
@@ -1202,13 +1264,13 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                           </motion.div>
                         )}
                         
-                        {/* Detecting Overlay */}
-                        {isDetecting && !successData && lastScanned !== 'error' && (
+                        {/* Detecting Overlay - Lighter for better camera visibility */}
+                        {isDetecting && !successData && lastScanned !== 'error' && isScanning && (
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="absolute inset-0 bg-blue-500/80 flex items-center justify-center rounded-lg z-20"
+                            className="absolute inset-0 bg-blue-500/30 backdrop-blur-sm flex items-center justify-center rounded-lg z-20"
                           >
                             <div className="text-center text-white space-y-4">
                               <div className="relative">
@@ -1232,6 +1294,15 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                             onClick={() => {
                               setSuccessData(null)
                               setLastScanned(null)
+                              setIsDetecting(false)
+                              // Resume scanning if still active
+                              if (isScanning && scannerRef.current) {
+                                try {
+                                  scannerRef.current.resume()
+                                } catch {
+                                  // Ignore resume errors
+                                }
+                              }
                             }}
                           >
                             <motion.div
@@ -1264,6 +1335,15 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                                   onClick={() => {
                                     setSuccessData(null)
                                     setLastScanned(null)
+                                    setIsDetecting(false)
+                                    // Resume scanning if still active
+                                    if (isScanning && scannerRef.current) {
+                                      try {
+                                        scannerRef.current.resume()
+                                      } catch {
+                                        // Ignore resume errors
+                                      }
+                                    }
                                   }}
                                   className="w-full"
                                   size="lg"
@@ -1275,18 +1355,33 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                           </motion.div>
                         )}
                         
-                        {/* Error Overlay */}
+                        {/* Error Overlay - Different messages for different error types */}
                         {lastScanned === 'error' && !successData && (
                           <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute inset-0 bg-red-500/90 flex items-center justify-center rounded-lg z-20"
+                            className={cn(
+                              "absolute inset-0 flex items-center justify-center rounded-lg z-20",
+                              errorType === 'already_checked_in' 
+                                ? "bg-yellow-500/80 backdrop-blur-sm" 
+                                : "bg-red-500/80 backdrop-blur-sm"
+                            )}
                           >
                             <div className="text-center text-white space-y-4">
                               <XCircle className="mx-auto h-16 w-16" />
-                              <p className="text-xl font-bold">Invalid QR Code</p>
-                              <p className="text-sm opacity-90">Please try again</p>
+                              <p className="text-xl font-bold">
+                                {errorType === 'already_checked_in' 
+                                  ? 'Already Checked In' 
+                                  : errorType === 'invalid'
+                                  ? 'Invalid QR Code'
+                                  : 'Unable to Check In'}
+                              </p>
+                              <p className="text-sm opacity-90">
+                                {errorType === 'already_checked_in' 
+                                  ? 'This attendee is already checked in'
+                                  : 'Please try again'}
+                              </p>
                             </div>
                           </motion.div>
                         )}
@@ -1313,8 +1408,11 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                             console.log('[QR Scanner] Stop button clicked', { isScanning, hasScanner: !!scannerRef.current })
                             logger.qrScan.info('Stop button clicked', { eventId, isScanning })
                             
-                            // Immediately update UI
+                            // Immediately update UI - clear all scanning states
                             setIsScanning(false)
+                            setIsDetecting(false)
+                            setLastScanned(null)
+                            setErrorType(null)
                             isProcessingRef.current = false
                             failedQRCodesRef.current.clear()
                             
