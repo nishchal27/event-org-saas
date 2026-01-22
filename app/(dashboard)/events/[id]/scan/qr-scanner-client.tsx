@@ -25,18 +25,46 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   const [isScanning, setIsScanning] = useState(false)
   const [cameraPermission, setCameraPermission] = useState<boolean | null>(null)
   const [isCheckingPermission, setIsCheckingPermission] = useState(true)
+  const [isInitializing, setIsInitializing] = useState(false) // Camera initialization state
+  const [isDetecting, setIsDetecting] = useState(false) // QR detection in progress
   const [lastScanned, setLastScanned] = useState<string | null>(null)
   const [scanHistory, setScanHistory] = useState<Array<{ qrCode: string; timestamp: Date; success: boolean }>>([])
+  const [successData, setSuccessData] = useState<{ name: string; timestamp: Date } | null>(null) // Success modal data
   const failedQRCodesRef = useRef<Set<string>>(new Set()) // Track failed QR codes to avoid retrying
   const isProcessingRef = useRef(false) // Prevent multiple simultaneous processing
 
+  // Haptic feedback helper
+  const triggerHaptic = (type: 'success' | 'error' | 'light' = 'light') => {
+    if ('vibrate' in navigator) {
+      try {
+        if (type === 'success') {
+          // Success pattern: short-long-short
+          navigator.vibrate([50, 30, 100, 30, 50])
+        } else if (type === 'error') {
+          // Error pattern: three short pulses
+          navigator.vibrate([50, 30, 50, 30, 50])
+        } else {
+          // Light feedback: single short pulse
+          navigator.vibrate(50)
+        }
+      } catch (err) {
+        // Ignore vibration errors
+      }
+    }
+  }
+
   const checkInMutation = trpc.attendee.checkInByAttendeeQR.useMutation({
     onSuccess: (data) => {
+      setIsDetecting(false)
       setLastScanned(data.attendeeQrCode || 'success')
+      setSuccessData({ name: data.name, timestamp: new Date() })
       setScanHistory((prev) => [
         { qrCode: data.attendeeQrCode || 'success', timestamp: new Date(), success: true },
         ...prev.slice(0, 4),
       ])
+      
+      // Trigger haptic feedback
+      triggerHaptic('success')
       
       // Track successful check-in
       trackEvent('qr_scan_success', {
@@ -50,20 +78,24 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         attendeeQrCode: data.attendeeQrCode,
       })
       
-      toast({
-        title: 'Success!',
-        description: `${data.name} checked in successfully`,
-      })
       utils.event.getById.invalidate({ id: eventId })
-      // Reset last scanned after 2 seconds
-      setTimeout(() => setLastScanned(null), 2000)
+      
+      // Hide success modal after 3 seconds
+      setTimeout(() => {
+        setSuccessData(null)
+        setLastScanned(null)
+      }, 3000)
     },
     onError: (error) => {
+      setIsDetecting(false)
       setLastScanned('error')
       setScanHistory((prev) => [
         { qrCode: 'error', timestamp: new Date(), success: false },
         ...prev.slice(0, 4),
       ])
+      
+      // Trigger haptic feedback for error
+      triggerHaptic('error')
       
       // Track error
       const errorObj = error instanceof Error ? error : new Error(error.message)
@@ -281,6 +313,8 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
     }
 
     try {
+      setIsInitializing(true)
+      
       // Clear any existing scanner instance
       if (scannerRef.current) {
         try {
@@ -448,11 +482,11 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
             await html5QrCode.start(
               currentCameraId,
             {
-              fps: 10,
+              fps: 20, // Increased FPS for better performance
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 // Make QR box responsive with minimum 50px size (html5-qrcode requirement)
-                // Use larger box (0.8) for better mobile screen detection
-                const minEdgePercentage = 0.8
+                // Use larger box (0.85) for better mobile screen detection
+                const minEdgePercentage = 0.85
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
                 const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage))
                 return {
@@ -462,9 +496,15 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
               },
               aspectRatio: 1.0,
               disableFlip: false,
+              videoConstraints: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
             },
             (decodedText) => {
-              // Success callback
+              // Success callback - trigger light haptic on detection
+              triggerHaptic('light')
               handleQRScan(decodedText)
             },
             (errorMessage) => {
@@ -527,11 +567,11 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
           await html5QrCode.start(
             cameraId,
             {
-              fps: 10,
+              fps: 20, // Increased FPS for better performance
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 // Make QR box responsive with minimum 50px size (html5-qrcode requirement)
-                // Use larger box (0.8) for better mobile screen detection
-                const minEdgePercentage = 0.8
+                // Use larger box (0.85) for better mobile screen detection
+                const minEdgePercentage = 0.85
                 const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight)
                 const qrboxSize = Math.max(50, Math.floor(minEdgeSize * minEdgePercentage))
                 return {
@@ -541,9 +581,15 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
               },
               aspectRatio: 1.0,
               disableFlip: false,
+              videoConstraints: {
+                facingMode: 'environment',
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
             },
             (decodedText) => {
-              // Success callback
+              // Success callback - trigger light haptic on detection
+              triggerHaptic('light')
               handleQRScan(decodedText)
             },
             (errorMessage) => {
@@ -582,6 +628,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
       isProcessingRef.current = false
       failedQRCodesRef.current.clear()
       
+      setIsInitializing(false)
       setIsScanning(true)
       
       // Track successful scan start
@@ -624,6 +671,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         scannerRef.current = null
       }
       
+      setIsInitializing(false)
       setIsScanning(false)
       
       // Determine user-friendly error message
@@ -740,6 +788,9 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   }
 
   const handleQRScan = (qrCode: string) => {
+    // Show detecting state
+    setIsDetecting(true)
+    
     // Extract attendee QR code from URL if it's a check-in URL
     // QR codes from the public page are URLs like: https://event-org-sa.../checkin/att-xxx-xxx
     let attendeeQrCode = qrCode.trim()
@@ -1021,10 +1072,10 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   const totalAttendees = event.attendees?.length || 0
   const qrScannedCount = event.attendees?.filter((a) => a.checkInMethod === 'qr_scan').length || 0
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+    return (
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-white sticky top-0 z-10">
+      <div className="border-b bg-card border-border sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -1034,8 +1085,8 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-xl font-bold">QR Scanner</h1>
-                <p className="text-sm text-gray-600">{event.title}</p>
+                <h1 className="text-xl font-bold text-foreground">QR Scanner</h1>
+                <p className="text-sm text-muted-foreground">{event.title}</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-sm">
@@ -1134,31 +1185,108 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
                         )}
                       />
 
-                      {/* Scan Feedback Overlay */}
+                      {/* Initializing Overlay */}
                       <AnimatePresence>
-                        {lastScanned === 'success' && (
+                        {isInitializing && (
                           <motion.div
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute inset-0 bg-green-500/90 flex items-center justify-center rounded-lg"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-lg z-20"
                           >
-                            <div className="text-center text-white">
-                              <CheckCircle2 className="mx-auto h-16 w-16 mb-4" />
-                              <p className="text-xl font-bold">Check-in Successful!</p>
+                            <div className="text-center text-white space-y-4">
+                              <div className="animate-spin rounded-full h-16 w-16 border-4 border-white border-t-transparent mx-auto"></div>
+                              <p className="text-lg font-semibold">Starting Camera...</p>
+                              <p className="text-sm opacity-75">Please wait</p>
                             </div>
                           </motion.div>
                         )}
-                        {lastScanned === 'error' && (
+                        
+                        {/* Detecting Overlay */}
+                        {isDetecting && !successData && lastScanned !== 'error' && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-blue-500/80 flex items-center justify-center rounded-lg z-20"
+                          >
+                            <div className="text-center text-white space-y-4">
+                              <div className="relative">
+                                <div className="animate-ping absolute inset-0 rounded-full bg-white opacity-75"></div>
+                                <ScanLine className="h-16 w-16 mx-auto relative" />
+                              </div>
+                              <p className="text-lg font-semibold">Scanning QR Code...</p>
+                              <p className="text-sm opacity-75">Please hold steady</p>
+                            </div>
+                          </motion.div>
+                        )}
+                        
+                        {/* Success Modal - Prominent and Centered */}
+                        {successData && (
                           <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.8 }}
-                            className="absolute inset-0 bg-red-500/90 flex items-center justify-center rounded-lg"
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                            onClick={() => {
+                              setSuccessData(null)
+                              setLastScanned(null)
+                            }}
                           >
-                            <div className="text-center text-white">
-                              <XCircle className="mx-auto h-16 w-16 mb-4" />
+                            <motion.div
+                              initial={{ y: 20 }}
+                              animate={{ y: 0 }}
+                              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center space-y-6"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                                className="mx-auto w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center"
+                              >
+                                <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+                              </motion.div>
+                              <div className="space-y-2">
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                  Check-in Successful!
+                                </h3>
+                                <p className="text-lg text-gray-600 dark:text-gray-300 font-medium">
+                                  {successData.name}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {successData.timestamp.toLocaleTimeString()}
+                                </p>
+                              </div>
+                              <div className="pt-4">
+                                <Button
+                                  onClick={() => {
+                                    setSuccessData(null)
+                                    setLastScanned(null)
+                                  }}
+                                  className="w-full"
+                                  size="lg"
+                                >
+                                  Continue Scanning
+                                </Button>
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        )}
+                        
+                        {/* Error Overlay */}
+                        {lastScanned === 'error' && !successData && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="absolute inset-0 bg-red-500/90 flex items-center justify-center rounded-lg z-20"
+                          >
+                            <div className="text-center text-white space-y-4">
+                              <XCircle className="mx-auto h-16 w-16" />
                               <p className="text-xl font-bold">Invalid QR Code</p>
+                              <p className="text-sm opacity-90">Please try again</p>
                             </div>
                           </motion.div>
                         )}

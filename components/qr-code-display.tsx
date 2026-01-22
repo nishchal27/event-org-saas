@@ -24,12 +24,13 @@ export function QRCodeDisplay({ qrCode, eventTitle, eventId }: QRCodeDisplayProp
       const checkInUrl = `${window.location.origin}/checkin/${qrCode}`
       
       QRCode.toDataURL(checkInUrl, {
-        width: 300,
-        margin: 2,
+        width: 512,
+        margin: 4,
         color: {
           dark: '#000000',
           light: '#FFFFFF',
         },
+        errorCorrectionLevel: 'H', // Higher error correction for better scanning
       })
         .then((url) => {
           setQrDataUrl(url)
@@ -100,7 +101,8 @@ export function QRCodeDisplay({ qrCode, eventTitle, eventId }: QRCodeDisplayProp
           <img
             src={qrDataUrl}
             alt="QR Code for Check-in"
-            className="w-64 h-64"
+            className="w-64 h-64 aspect-square object-contain"
+            style={{ aspectRatio: '1 / 1' }}
           />
         </motion.div>
         <p className="mt-4 text-sm font-medium text-foreground">
