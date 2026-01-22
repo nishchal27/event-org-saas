@@ -14,13 +14,13 @@ export async function GET(request: NextRequest) {
     
     // Generate QR code as data URL
     const qrDataUrl = await QRCode.toDataURL(checkInUrl, {
-      width: 400,
-      margin: 2,
+      width: 512,
+      margin: 4,
       color: {
         dark: '#000000',
         light: '#FFFFFF',
       },
-      errorCorrectionLevel: 'M',
+      errorCorrectionLevel: 'H', // Higher error correction for better scanning
     })
 
     // Convert data URL to buffer

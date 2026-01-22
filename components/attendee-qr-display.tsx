@@ -25,13 +25,13 @@ export function AttendeeQRDisplay({ attendeeQrCode, attendeeName, eventTitle }: 
       const checkInUrl = `${window.location.origin}/checkin/${attendeeQrCode}`
       
       QRCode.toDataURL(checkInUrl, {
-        width: 400,
-        margin: 2,
+        width: 512,
+        margin: 4,
         color: {
           dark: '#000000',
           light: '#FFFFFF',
         },
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'H', // Higher error correction for better scanning
       })
         .then((url) => {
           setQrDataUrl(url)
@@ -160,7 +160,8 @@ export function AttendeeQRDisplay({ attendeeQrCode, attendeeName, eventTitle }: 
               <img
                 src={qrDataUrl}
                 alt="Your Check-in QR Code"
-                className="w-64 h-64 sm:w-80 sm:h-80"
+                className="w-64 h-64 sm:w-80 sm:h-80 aspect-square object-contain"
+                style={{ aspectRatio: '1 / 1' }}
               />
             </div>
             <p className="mt-4 text-sm font-medium text-foreground">
