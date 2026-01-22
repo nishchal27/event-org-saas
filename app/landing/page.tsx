@@ -83,7 +83,7 @@ const structuredData = {
   },
   description: 'WhatsApp-first event management tool for creating events, sending invitations, and tracking attendance. Perfect for trainers, coaches, and organizers.',
   url: siteUrl,
-  logo: `${siteUrl}/logo/fav-icon.png`,
+  logo: `${siteUrl}/logo/favicon.png`,
   featureList: [
     'WhatsApp Event Invitations',
     'QR Code Check-in',
@@ -102,7 +102,7 @@ const organizationStructuredData = {
   '@type': 'Organization',
   name: 'EventOrg',
   url: siteUrl,
-  logo: `${siteUrl}/logo/fav-icon.png`,
+  logo: `${siteUrl}/logo/favicon.png`,
   description: 'Event management platform for creating events, sending WhatsApp invitations, and tracking attendance.',
   sameAs: [
     // Add social media links when available
