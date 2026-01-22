@@ -34,16 +34,16 @@ export const metadata: Metadata = {
     'community event management',
   ],
   openGraph: {
-    title: 'EventOrg - Event Management Made Simple',
+    title: 'Lexnify - Event Management Made Simple',
     description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers.',
     url: `${siteUrl}/landing`,
-    siteName: 'EventOrg',
+    siteName: 'Lexnify',
     images: [
       {
         url: `${siteUrl}/images/hero/Speaker + audience.jpg`,
         width: 1200,
         height: 630,
-        alt: 'EventOrg - Event Management Platform',
+        alt: 'Lexnify - Event Management Platform',
       },
     ],
     locale: 'en_IN',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'EventOrg - Event Management Made Simple',
+    title: 'Lexnify - Event Management Made Simple',
     description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers.',
     images: [`${siteUrl}/images/hero/Speaker + audience.jpg`],
   },

@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 const inter = Inter({ subsets: ["latin"] })
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lexnify.com'
-const siteName = 'EventOrg - Event Management Made Simple'
+const siteName = 'Lexnify - Event Management Made Simple'
 const defaultDescription = 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. WhatsApp-first event management with unique QR codes, advanced analytics, and premium features.'
 
 export function generateMetadata(): Metadata {
@@ -43,9 +43,9 @@ export function generateMetadata(): Metadata {
       'event templates',
       'contact management',
     ],
-    authors: [{ name: 'EventOrg' }],
-    creator: 'EventOrg',
-    publisher: 'EventOrg',
+    authors: [{ name: 'Lexnify' }],
+    creator: 'Lexnify',
+    publisher: 'Lexnify',
     formatDetection: {
       email: false,
       address: false,
@@ -54,11 +54,11 @@ export function generateMetadata(): Metadata {
     manifest: "/manifest.json",
     icons: {
       icon: [
-        { url: '/logo/fav-icon.png', sizes: 'any' },
-        { url: '/logo/fav-icon.png', type: 'image/png' },
+        { url: '/logo/icon.svg', type: 'image/svg+xml' },
+        { url: '/logo/icon-192.png', sizes: '192x192', type: 'image/png' },
       ],
       apple: [
-        { url: '/logo/fav-icon.png', sizes: '180x180', type: 'image/png' },
+        { url: '/logo/icon-180.png', sizes: '180x180', type: 'image/png' },
       ],
     },
     openGraph: {
@@ -73,7 +73,7 @@ export function generateMetadata(): Metadata {
           url: `${siteUrl}/images/hero/Speaker + audience.jpg`,
           width: 1200,
           height: 630,
-          alt: 'EventOrg - Event Management Platform',
+          alt: 'Lexnify - Event Management Platform',
         },
       ],
     },
@@ -82,7 +82,7 @@ export function generateMetadata(): Metadata {
       title: siteName,
       description: defaultDescription,
       images: [`${siteUrl}/images/hero/Speaker + audience.jpg`],
-      creator: '@eventorg',
+      creator: '@lexnify',
     },
     robots: {
       index: true,
@@ -101,7 +101,7 @@ export function generateMetadata(): Metadata {
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
-      title: "EventOrg",
+      title: "Lexnify",
     },
     other: {
       ...Sentry.getTraceData(),
