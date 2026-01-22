@@ -71,18 +71,18 @@ export function SettingsClient() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
+    <div className="min-h-screen bg-background">
+      <div className="border-b bg-card border-border">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Settings</h1>
+            <h1 className="text-2xl font-bold text-foreground">Settings</h1>
             <Link href="/settings/message-templates">
               <Button variant="outline">
                 <MessageSquare className="mr-2 h-4 w-4" />
@@ -106,7 +106,7 @@ export function SettingsClient() {
               {/* Organization Logo */}
               <div>
                 <Label htmlFor="logo">Organization Logo</Label>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Upload your organization logo. If not uploaded, your organization name will be displayed.
                 </p>
                 <div className="mt-3 space-y-3">
@@ -115,7 +115,7 @@ export function SettingsClient() {
                       <img
                         src={logo}
                         alt="Organization logo"
-                        className="h-20 w-20 rounded-lg object-cover border border-gray-200"
+                        className="h-20 w-20 rounded-lg object-cover border border-border"
                       />
                       <Button
                         type="button"
@@ -162,7 +162,7 @@ export function SettingsClient() {
               {/* Theme Color */}
               <div>
                 <Label htmlFor="themeColor">Event Page Theme Color</Label>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Choose a color theme for your public event pages
                 </p>
                 <div className="mt-3 flex items-center gap-4">
@@ -197,7 +197,7 @@ export function SettingsClient() {
               {/* Font Style */}
               <div>
                 <Label htmlFor="fontStyle">Font Style</Label>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Choose the font style for your event pages
                 </p>
                 <select
@@ -215,7 +215,7 @@ export function SettingsClient() {
               {/* Background */}
               <div>
                 <Label>Background</Label>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Choose the background style for your event pages
                 </p>
                 <div className="mt-3 flex gap-4">

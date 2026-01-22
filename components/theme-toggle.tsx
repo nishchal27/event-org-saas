@@ -18,10 +18,10 @@ export function ThemeToggle() {
       root.classList.add(stored)
       setIsDark(stored === 'dark')
     } else {
-      // Default to dark mode
-      root.classList.add('dark')
-      setIsDark(true)
-      localStorage.setItem('theme', 'dark')
+      // Default to light mode
+      root.classList.add('light')
+      setIsDark(false)
+      localStorage.setItem('theme', 'light')
     }
   }, [])
 

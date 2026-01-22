@@ -71,18 +71,18 @@ export function PublicEventClient({ slug }: { slug: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">Loading event...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center text-muted-foreground">Loading event...</div>
       </div>
     )
   }
 
   if (!event) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-xl font-semibold">Event not found</h2>
-          <p className="mt-2 text-gray-600">This event may have been removed or the link is invalid.</p>
+          <h2 className="text-xl font-semibold text-foreground">Event not found</h2>
+          <p className="mt-2 text-muted-foreground">This event may have been removed or the link is invalid.</p>
         </div>
       </div>
     )
@@ -141,8 +141,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
   return (
     <div
       className={cn(
-        'min-h-screen',
-        backgroundColor === 'dark' ? 'bg-gray-900' : 'bg-gray-50',
+        'min-h-screen bg-background',
         fontClasses[fontStyle as keyof typeof fontClasses]
       )}
       style={{
@@ -172,7 +171,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
           <Card
             className={cn(
               'overflow-hidden',
-              backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white'
+              backgroundColor === 'dark' ? 'bg-card border-border' : ''
             )}
           >
             {event.imageUrl && (
@@ -188,8 +187,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
             <CardContent className="p-6 md:p-8">
               <h1
                 className={cn(
-                  'mb-4 text-3xl font-bold',
-                  backgroundColor === 'dark' ? 'text-white' : 'text-gray-900'
+                  'mb-4 text-3xl font-bold text-foreground'
                 )}
               >
                 {event.title}
@@ -199,23 +197,20 @@ export function PublicEventClient({ slug }: { slug: string }) {
                 <div className="flex items-start gap-3">
                   <Calendar
                     className={cn(
-                      'mt-1 h-5 w-5',
-                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-400'
+                      'mt-1 h-5 w-5 text-muted-foreground'
                     )}
                   />
                   <div>
                     <p
                       className={cn(
-                        'font-medium',
-                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        'font-medium text-foreground'
                       )}
                     >
                       Date & Time
                     </p>
                     <p
                       className={cn(
-                        'text-sm',
-                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        'text-sm text-muted-foreground'
                       )}
                     >
                       {dateLabel} • {timeLabel}
@@ -226,23 +221,20 @@ export function PublicEventClient({ slug }: { slug: string }) {
                 <div className="flex items-start gap-3">
                   <MapPin
                     className={cn(
-                      'mt-1 h-5 w-5',
-                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-400'
+                      'mt-1 h-5 w-5 text-muted-foreground'
                     )}
                   />
                   <div>
                     <p
                       className={cn(
-                        'font-medium',
-                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        'font-medium text-foreground'
                       )}
                     >
                       Location
                     </p>
                     <p
                       className={cn(
-                        'text-sm',
-                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        'text-sm text-muted-foreground'
                       )}
                     >
                       {event.location}
@@ -253,16 +245,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                 <div>
                   <p
                     className={cn(
-                      'font-medium',
-                      backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                      'font-medium text-foreground'
                     )}
                   >
                     Description
                   </p>
                   <p
                     className={cn(
-                      'mt-1 whitespace-pre-wrap text-sm',
-                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      'mt-1 whitespace-pre-wrap text-sm text-muted-foreground'
                     )}
                   >
                     {event.description}
@@ -273,16 +263,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   <div>
                     <p
                       className={cn(
-                        'font-medium',
-                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        'font-medium text-foreground'
                       )}
                     >
                       Additional Notes
                     </p>
                     <p
                       className={cn(
-                        'mt-1 whitespace-pre-wrap text-sm',
-                        backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        'mt-1 whitespace-pre-wrap text-sm text-muted-foreground'
                       )}
                     >
                       {event.additionalNotes}
@@ -291,19 +279,17 @@ export function PublicEventClient({ slug }: { slug: string }) {
                 )}
 
                 {event.maxCapacity && (
-                  <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
                     <p
                       className={cn(
-                        'font-medium',
-                        backgroundColor === 'dark' ? 'text-blue-200' : 'text-blue-900'
+                        'font-medium text-blue-900 dark:text-blue-200'
                       )}
                     >
                       Capacity
                     </p>
                     <p
                       className={cn(
-                        'text-sm mt-1',
-                        backgroundColor === 'dark' ? 'text-blue-300' : 'text-blue-700'
+                        'text-sm mt-1 text-blue-700 dark:text-blue-300'
                       )}
                     >
                       Maximum {event.maxCapacity} spots available. If full, you'll be added to the waitlist.
@@ -315,8 +301,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   <div>
                     <p
                       className={cn(
-                        'font-medium',
-                        backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                        'font-medium text-foreground'
                       )}
                     >
                       Additional Information
@@ -326,15 +311,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                         <div className="text-sm">
                           <span
                             className={cn(
-                              'font-medium',
-                              backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                              'font-medium text-foreground'
                             )}
                           >
                             {event.customField1Label}:
                           </span>{' '}
                           <span
                             className={cn(
-                              backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                              'text-muted-foreground'
                             )}
                           >
                             {event.customField1Value}
@@ -345,15 +329,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                         <div className="text-sm">
                           <span
                             className={cn(
-                              'font-medium',
-                              backgroundColor === 'dark' ? 'text-gray-200' : 'text-gray-900'
+                              'font-medium text-foreground'
                             )}
                           >
                             {event.customField2Label}:
                           </span>{' '}
                           <span
                             className={cn(
-                              backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                              'text-muted-foreground'
                             )}
                           >
                             {event.customField2Value}
@@ -370,7 +353,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   <div>
                     <Label
                       htmlFor="name"
-                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                      className="text-foreground"
                     >
                       Your Name *
                     </Label>
@@ -379,12 +362,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter your name"
-                      className={cn(
-                        'mt-1',
-                        backgroundColor === 'dark'
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
-                          : ''
-                      )}
+                      className="mt-1"
                       required
                     />
                   </div>
@@ -392,7 +370,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   <div>
                     <Label
                       htmlFor="phone"
-                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                      className="text-foreground"
                     >
                       Phone Number *
                     </Label>
@@ -402,12 +380,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Enter your phone number"
-                      className={cn(
-                        'mt-1',
-                        backgroundColor === 'dark'
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
-                          : ''
-                      )}
+                      className="mt-1"
                       required
                     />
                   </div>
@@ -415,7 +388,7 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   <div>
                     <Label
                       htmlFor="email"
-                      className={backgroundColor === 'dark' ? 'text-gray-200' : ''}
+                      className="text-foreground"
                     >
                       Email (Optional)
                     </Label>
@@ -425,17 +398,12 @@ export function PublicEventClient({ slug }: { slug: string }) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email"
-                      className={cn(
-                        'mt-1',
-                        backgroundColor === 'dark'
-                          ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-400'
-                          : ''
-                      )}
+                      className="mt-1"
                     />
                   </div>
 
                   <div>
-                    <Label className={backgroundColor === 'dark' ? 'text-gray-200' : ''}>
+                    <Label className="text-foreground">
                       Will you be attending? *
                     </Label>
                     <div className="mt-2 grid grid-cols-3 gap-2">
@@ -520,16 +488,14 @@ export function PublicEventClient({ slug }: { slug: string }) {
                   />
                   <h3
                     className={cn(
-                      'mt-4 text-lg font-semibold',
-                      backgroundColor === 'dark' ? 'text-white' : 'text-gray-900'
+                      'mt-4 text-lg font-semibold text-foreground'
                     )}
                   >
                     Thank you for confirming!
                   </h3>
                   <p
                     className={cn(
-                      'mt-2 text-sm',
-                      backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      'mt-2 text-sm text-muted-foreground'
                     )}
                   >
                     We look forward to seeing you at the event.
