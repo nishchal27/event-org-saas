@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { TechLogos } from '@/components/landing/TechLogos'
+import { Logo } from '@/components/logo'
 
 export function Footer() {
   return (
@@ -8,23 +9,7 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 34 34"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M16.1326 8.45497C16.5308 7.95801 17.286 7.95453 17.6883 8.44813L27.5164 20.5077C28.0488 21.161 27.5838 22.1395 26.741 22.1395H24.4442C24.1428 22.1395 23.8577 22.0034 23.6678 21.7694L17.7029 14.4188C17.2962 13.9175 16.5285 13.927 16.1346 14.4384L10.7303 21.454C10.5411 21.6996 10.2484 21.8435 9.9383 21.8436H7.4881C6.64925 21.8436 6.18332 20.8733 6.70783 20.2186L16.1326 8.45497Z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </div>
-              <span className="text-xl font-semibold">EventOrg</span>
-            </div>
+            <Logo href="/landing" size="sm" />
             <p className="text-sm text-muted-foreground">
               Create events, notify people on WhatsApp, and track attendance — for groups, instructors, and organizers.
             </p>

@@ -8,6 +8,7 @@ import { OrganizationSwitcher, UserButton, useOrganization, useUser } from '@cle
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/logo'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -53,8 +54,17 @@ export function Sidebar() {
 
   const sidebarContent = (
       <div className="flex h-full flex-col">
-        <div className="border-b border-border p-4 space-y-3">
-          <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
+        {/* Logo only shown on desktop - mobile has it in header */}
+        <div className="hidden md:block border-b border-border p-4 space-y-3">
+          <Logo href="/dashboard" size="sm" />
+          <OrganizationSwitcher
+            hidePersonal
+            afterSelectOrganizationUrl="/dashboard"
+            afterCreateOrganizationUrl="/dashboard"
+          />
+        </div>
+        {/* Organization switcher for mobile (logo is in mobile header) */}
+        <div className="md:hidden border-b border-border p-4 space-y-3">
           <OrganizationSwitcher
             hidePersonal
             afterSelectOrganizationUrl="/dashboard"
@@ -135,7 +145,7 @@ export function Sidebar() {
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-border p-4">
-            <h1 className="text-xl font-bold text-foreground">EventOrg</h1>
+            <Logo href="/dashboard" size="sm" />
             <Button
               variant="ghost"
               size="icon"
