@@ -176,8 +176,8 @@ export function TemplatesClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
+    <div className="min-h-screen bg-background">
+      <div className="border-b bg-card border-border">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -187,8 +187,8 @@ export function TemplatesClient() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold">Event Templates</h1>
-                <p className="text-sm text-gray-600">Save and reuse event configurations</p>
+                <h1 className="text-2xl font-bold text-foreground">Event Templates</h1>
+                <p className="text-sm text-muted-foreground">Save and reuse event configurations</p>
               </div>
             </div>
             <Dialog
@@ -429,7 +429,7 @@ export function TemplatesClient() {
                 <CardDescription>Manage your event templates</CardDescription>
               </div>
               <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search templates..."
                   value={searchQuery}
@@ -441,11 +441,11 @@ export function TemplatesClient() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-center text-gray-500">Loading templates...</div>
+              <div className="py-8 text-center text-muted-foreground">Loading templates...</div>
             ) : filteredTemplates.length === 0 ? (
               <div className="py-12 text-center">
-                <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-4 text-gray-500">
+                <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                <p className="mt-4 text-muted-foreground">
                   {searchQuery ? 'No templates found' : 'No templates yet. Create your first template!'}
                 </p>
               </div>

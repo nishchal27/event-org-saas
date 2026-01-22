@@ -112,4 +112,24 @@
       touch-action: manipulation;
     }
   }
+
+  /* Clerk OrganizationSwitcher dark mode fix */
+  .dark [data-clerk-element="organizationSwitcher"] [data-clerk-element="organizationSwitcherTrigger"],
+  .dark [data-clerk-element="organizationSwitcher"] [data-clerk-element="organizationSwitcherTrigger"] span,
+  .dark [data-clerk-element="organizationSwitcher"] button,
+  .dark [data-clerk-element="organizationSwitcher"] button span,
+  .dark [data-clerk-element="organizationSwitcher"] [data-clerk-element="organizationSwitcherTrigger"] * {
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  .dark [data-clerk-element="organizationSwitcher"] [data-clerk-element="organizationSwitcherTrigger"]:hover {
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  /* Additional Clerk component dark mode fixes */
+  .dark .cl-organizationSwitcherTrigger,
+  .dark .cl-organizationSwitcherTrigger span,
+  .dark .cl-organizationSwitcherTrigger * {
+    color: hsl(var(--foreground)) !important;
+  }
 }

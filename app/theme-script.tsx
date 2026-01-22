@@ -11,8 +11,8 @@ export function ThemeScript() {
               if (stored === 'light' || stored === 'dark') {
                 root.classList.add(stored);
               } else {
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                root.classList.add(prefersDark ? 'dark' : 'light');
+                // Default to light mode
+                root.classList.add('light');
               }
             } catch (e) {
               console.warn('Theme script error:', e);

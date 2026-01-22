@@ -176,17 +176,17 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center text-gray-500">Loading event...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center text-muted-foreground">Loading event...</div>
       </div>
     )
   }
 
   if (!event) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-xl font-semibold">Event not found</h2>
+          <h2 className="text-xl font-semibold text-foreground">Event not found</h2>
           <Button onClick={() => router.push('/events')} className="mt-4">
             Back to Events
           </Button>
@@ -217,13 +217,13 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
     : formatTime(event.startTime)
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      <div className="border-b bg-white">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <div className="border-b bg-card border-border">
         <div className="container mx-auto px-4 py-4 md:px-6 max-w-full">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="pt-12 md:pt-0">
               <h1 className="text-xl md:text-2xl font-bold break-words">{event.title}</h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Created {formatDate(event.createdAt)}
               </p>
             </div>
@@ -318,34 +318,34 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
 
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
-                        <Calendar className="mt-1 h-5 w-5 text-gray-400 flex-shrink-0" />
+                        <Calendar className="mt-1 h-5 w-5 text-muted-foreground flex-shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">Date & Time</p>
-                          <p className="text-sm text-gray-600 break-words">
+                          <p className="font-medium text-foreground">Date & Time</p>
+                          <p className="text-sm text-muted-foreground break-words">
                             {dateLabel} • {timeLabel}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <MapPin className="mt-1 h-5 w-5 text-gray-400 flex-shrink-0" />
+                        <MapPin className="mt-1 h-5 w-5 text-muted-foreground flex-shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium">Location</p>
-                          <p className="text-sm text-gray-600 break-words">{event.location}</p>
+                          <p className="font-medium text-foreground">Location</p>
+                          <p className="text-sm text-muted-foreground break-words">{event.location}</p>
                         </div>
                       </div>
 
                       <div>
-                        <p className="font-medium">Description</p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                        <p className="font-medium text-foreground">Description</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                           {event.description}
                         </p>
                       </div>
 
                       {event.additionalNotes && (
                         <div>
-                          <p className="font-medium">Additional Notes</p>
-                          <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">
+                          <p className="font-medium text-foreground">Additional Notes</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                             {event.additionalNotes}
                           </p>
                         </div>
@@ -353,18 +353,18 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
 
                       {(event.customField1Label || event.customField2Label) && (
                         <div>
-                          <p className="font-medium">Custom Fields</p>
+                          <p className="font-medium text-foreground">Custom Fields</p>
                           <div className="mt-2 space-y-2">
                             {event.customField1Label && (
                               <div className="text-sm">
-                                <span className="font-medium">{event.customField1Label}:</span>{' '}
-                                <span className="text-gray-600">{event.customField1Value}</span>
+                                <span className="font-medium text-foreground">{event.customField1Label}:</span>{' '}
+                                <span className="text-muted-foreground">{event.customField1Value}</span>
                               </div>
                             )}
                             {event.customField2Label && (
                               <div className="text-sm">
-                                <span className="font-medium">{event.customField2Label}:</span>{' '}
-                                <span className="text-gray-600">{event.customField2Value}</span>
+                                <span className="font-medium text-foreground">{event.customField2Label}:</span>{' '}
+                                <span className="text-muted-foreground">{event.customField2Value}</span>
                               </div>
                             )}
                           </div>
@@ -385,11 +385,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                   </CardHeader>
                   <CardContent>
                     {event.maxCapacity && (
-                      <div className="mb-4 rounded-lg bg-blue-50 p-4">
-                        <p className="text-sm font-medium text-blue-900">Capacity</p>
-                        <p className="text-2xl font-bold text-blue-600">{capacityInfo}</p>
+                      <div className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200">Capacity</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{capacityInfo}</p>
                         {waitlistCount > 0 && (
-                          <p className="mt-1 text-sm text-blue-700">{waitlistCount} on waitlist</p>
+                          <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">{waitlistCount} on waitlist</p>
                         )}
                       </div>
                     )}
@@ -403,38 +403,38 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                       return (
                         <div className={`mb-4 grid gap-3 md:gap-4 ${gridCols}`}>
                           {hasCheckedIn && (
-                            <div className="rounded-lg bg-blue-50 p-4 text-center">
-                              <CheckCircle className="mx-auto h-6 w-6 text-blue-600" />
-                              <p className="mt-2 text-2xl font-bold text-blue-600">{checkedInCount}</p>
-                              <p className="text-sm text-gray-600">Checked In</p>
+                            <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 text-center">
+                              <CheckCircle className="mx-auto h-6 w-6 text-blue-600 dark:text-blue-400" />
+                              <p className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">{checkedInCount}</p>
+                              <p className="text-sm text-muted-foreground">Checked In</p>
                               {qrScannedCount > 0 && (
-                                <p className="text-xs text-blue-700 mt-1">
+                                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
                                   {qrScannedCount} via QR
                                 </p>
                               )}
                             </div>
                           )}
-                          <div className="rounded-lg bg-green-50 p-4 text-center">
-                            <CheckCircle className="mx-auto h-6 w-6 text-green-600" />
-                            <p className="mt-2 text-2xl font-bold text-green-600">{confirmedCount}</p>
-                            <p className="text-sm text-gray-600">Confirmed</p>
+                          <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 text-center">
+                            <CheckCircle className="mx-auto h-6 w-6 text-green-600 dark:text-green-400" />
+                            <p className="mt-2 text-2xl font-bold text-green-600 dark:text-green-400">{confirmedCount}</p>
+                            <p className="text-sm text-muted-foreground">Confirmed</p>
                           </div>
                           {waitlistCount > 0 && (
-                            <div className="rounded-lg bg-yellow-50 p-4 text-center">
-                              <Users className="mx-auto h-6 w-6 text-yellow-600" />
-                              <p className="mt-2 text-2xl font-bold text-yellow-600">{waitlistCount}</p>
-                              <p className="text-sm text-gray-600">Waitlist</p>
+                            <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4 text-center">
+                              <Users className="mx-auto h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                              <p className="mt-2 text-2xl font-bold text-yellow-600 dark:text-yellow-400">{waitlistCount}</p>
+                              <p className="text-sm text-muted-foreground">Waitlist</p>
                             </div>
                           )}
-                          <div className="rounded-lg bg-red-50 p-4 text-center">
-                            <XCircle className="mx-auto h-6 w-6 text-red-600" />
-                            <p className="mt-2 text-2xl font-bold text-red-600">{declinedCount}</p>
-                            <p className="text-sm text-gray-600">Declined</p>
+                          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-center">
+                            <XCircle className="mx-auto h-6 w-6 text-red-600 dark:text-red-400" />
+                            <p className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">{declinedCount}</p>
+                            <p className="text-sm text-muted-foreground">Declined</p>
                           </div>
-                          <div className="rounded-lg bg-gray-50 p-4 text-center">
-                            <Users className="mx-auto h-6 w-6 text-gray-600" />
-                            <p className="mt-2 text-2xl font-bold text-gray-600">{pendingCount}</p>
-                            <p className="text-sm text-gray-600">Pending</p>
+                          <div className="rounded-lg bg-muted p-4 text-center">
+                            <Users className="mx-auto h-6 w-6 text-muted-foreground" />
+                            <p className="mt-2 text-2xl font-bold text-foreground">{pendingCount}</p>
+                            <p className="text-sm text-muted-foreground">Pending</p>
                           </div>
                         </div>
                       )
@@ -467,12 +467,12 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: 0.1 }}
-                              className="rounded-lg bg-purple-50 p-3 text-center border border-purple-200"
+                              className="rounded-lg bg-purple-50 dark:bg-purple-900/20 p-3 text-center border border-purple-200 dark:border-purple-800"
                             >
-                              <Users className="mx-auto h-5 w-5 text-purple-600 mb-1" />
-                              <p className="text-lg font-bold text-purple-600">{manualCheckInCount}</p>
+                              <Users className="mx-auto h-5 w-5 text-purple-600 dark:text-purple-400 mb-1" />
+                              <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{manualCheckInCount}</p>
                               <p className="text-xs text-muted-foreground">Manual</p>
-                              <p className="text-xs text-purple-600/70 mt-1">
+                              <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">
                                 {Math.round((manualCheckInCount / checkedInCount) * 100)}%
                               </p>
                             </motion.div>
@@ -482,12 +482,12 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: 0.2 }}
-                              className="rounded-lg bg-orange-50 p-3 text-center border border-orange-200"
+                              className="rounded-lg bg-orange-50 dark:bg-orange-900/20 p-3 text-center border border-orange-200 dark:border-orange-800"
                             >
-                              <QrCode className="mx-auto h-5 w-5 text-orange-600 mb-1" />
-                              <p className="text-lg font-bold text-orange-600">{eventQrCheckInCount}</p>
+                              <QrCode className="mx-auto h-5 w-5 text-orange-600 dark:text-orange-400 mb-1" />
+                              <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{eventQrCheckInCount}</p>
                               <p className="text-xs text-muted-foreground">Event QR</p>
-                              <p className="text-xs text-orange-600/70 mt-1">
+                              <p className="text-xs text-orange-600/70 dark:text-orange-400/70 mt-1">
                                 {Math.round((eventQrCheckInCount / checkedInCount) * 100)}%
                               </p>
                             </motion.div>
@@ -497,22 +497,22 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: 0.3 }}
-                              className="rounded-lg bg-gray-50 p-3 text-center border border-gray-200"
+                              className="rounded-lg bg-muted p-3 text-center border border-border"
                             >
-                              <CheckCircle className="mx-auto h-5 w-5 text-gray-600 mb-1" />
-                              <p className="text-lg font-bold text-gray-600">
+                              <CheckCircle className="mx-auto h-5 w-5 text-muted-foreground mb-1" />
+                              <p className="text-lg font-bold text-foreground">
                                 {checkedInCount - qrScannedCount - manualCheckInCount - eventQrCheckInCount}
                               </p>
                               <p className="text-xs text-muted-foreground">Other</p>
-                              <p className="text-xs text-gray-600/70 mt-1">
+                              <p className="text-xs text-muted-foreground/70 mt-1">
                                 {Math.round(((checkedInCount - qrScannedCount - manualCheckInCount - eventQrCheckInCount) / checkedInCount) * 100)}%
                               </p>
                             </motion.div>
                           )}
                         </div>
                         {qrScannedCount > 0 && (
-                          <div className="mt-3 rounded-lg bg-green-50 p-2 text-center border border-green-200">
-                            <p className="text-xs font-medium text-green-700">
+                          <div className="mt-3 rounded-lg bg-green-50 dark:bg-green-900/20 p-2 text-center border border-green-200 dark:border-green-800">
+                            <p className="text-xs font-medium text-green-700 dark:text-green-300">
                               ✨ {qrScannedCount} attendee{qrScannedCount !== 1 ? 's' : ''} used fast QR scan check-in!
                             </p>
                           </div>
@@ -522,16 +522,16 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
 
                     <div className="space-y-2">
                       {event.attendees.length === 0 ? (
-                        <p className="py-8 text-center text-gray-500">No attendees yet</p>
+                        <p className="py-8 text-center text-muted-foreground">No attendees yet</p>
                       ) : (
                         event.attendees.map((attendee) => (
                           <div
                             key={attendee.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border p-3"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-border p-3"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium break-words">{attendee.name}</p>
-                              <p className="text-sm text-gray-600 break-words">{attendee.phone}</p>
+                              <p className="font-medium text-foreground break-words">{attendee.name}</p>
+                              <p className="text-sm text-muted-foreground break-words">{attendee.phone}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               {attendee.checkedIn && (
@@ -576,12 +576,12 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
               </TabsContent>
 
               <TabsContent value="invite" className="space-y-4">
-                <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+                <div className="rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
                   <div className="flex items-start gap-3">
-                    <MessageSquare className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                     <div>
-                      <p className="font-medium text-blue-900 mb-1">Manual WhatsApp (MVP)</p>
-                      <p className="text-sm text-blue-700">
+                      <p className="font-medium text-blue-900 dark:text-blue-200 mb-1">Manual WhatsApp (MVP)</p>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
                         Generate invitation message, copy it, and send manually via WhatsApp. 
                         Automation features will be available in future phases.
                       </p>
@@ -639,29 +639,29 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-gray-600">Total Invited</p>
-                  <p className="text-2xl font-bold">{event.attendees.length}</p>
+                  <p className="text-sm text-muted-foreground">Total Invited</p>
+                  <p className="text-2xl font-bold text-foreground">{event.attendees.length}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Confirmed</p>
-                  <p className="text-2xl font-bold text-green-600">{confirmedCount}</p>
+                  <p className="text-sm text-muted-foreground">Confirmed</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{confirmedCount}</p>
                 </div>
                 {event.maxCapacity && (
                   <div>
-                    <p className="text-sm text-gray-600">Capacity</p>
-                    <p className="text-2xl font-bold">{capacityInfo}</p>
+                    <p className="text-sm text-muted-foreground">Capacity</p>
+                    <p className="text-2xl font-bold text-foreground">{capacityInfo}</p>
                   </div>
                 )}
                 {waitlistCount > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600">Waitlist</p>
-                    <p className="text-2xl font-bold text-yellow-600">{waitlistCount}</p>
+                    <p className="text-sm text-muted-foreground">Waitlist</p>
+                    <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{waitlistCount}</p>
                   </div>
                 )}
                 {checkedInCount > 0 && (
                   <div>
-                    <p className="text-sm text-gray-600">Checked In</p>
-                    <p className="text-2xl font-bold text-blue-600">{checkedInCount}</p>
+                    <p className="text-sm text-muted-foreground">Checked In</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{checkedInCount}</p>
                     {qrScannedCount > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {qrScannedCount} via QR scan
@@ -670,8 +670,8 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                   </div>
                 )}
                 <div>
-                  <p className="text-sm text-gray-600">Response Rate</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm text-muted-foreground">Response Rate</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {event.attendees.length > 0
                       ? Math.round(
                           ((confirmedCount + declinedCount) / event.attendees.length) * 100
