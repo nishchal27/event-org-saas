@@ -39,7 +39,7 @@ export async function generateMetadata({
 
   const eventDate = formatDate(event.eventDate)
   const description = event.description || `Join us for ${event.title} on ${eventDate} at ${event.location}`
-  const title = `${event.title} | EventOrg`
+  const title = `${event.title} | Lexnify`
   const imageUrl = event.imageUrl || `${siteUrl}/images/hero/Speaker + audience.jpg`
 
   return {
@@ -58,7 +58,7 @@ export async function generateMetadata({
           alt: event.title,
         },
       ],
-      siteName: 'EventOrg',
+      siteName: 'Lexnify',
     },
     twitter: {
       card: 'summary_large_image',
@@ -123,7 +123,7 @@ export default async function PublicEventPage({
         image: event.imageUrl || `${siteUrl}/images/hero/Speaker + audience.jpg`,
         organizer: {
           '@type': 'Organization',
-          name: event.organization?.name || 'EventOrg',
+          name: event.organization?.name || 'Lexnify',
         },
         offers: {
           '@type': 'Offer',

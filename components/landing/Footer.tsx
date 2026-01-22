@@ -123,7 +123,7 @@ export function Footer() {
             {/* Copyright & Links */}
             <div className="flex w-full flex-col items-center justify-between gap-4 sm:flex-row">
               <p className="text-sm text-muted-foreground">
-                © {new Date().getFullYear()} EventOrg. All rights reserved.
+                © {new Date().getFullYear()} Lexnify. All rights reserved.
               </p>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
                 <Link

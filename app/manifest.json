@@ -1,21 +1,23 @@
 {
-  "name": "EventOrg - Event Management",
-  "short_name": "EventOrg",
-  "description": "Create, manage, and invite attendees to your events with WhatsApp automation",
+  "name": "Lexnify - Event Management Made Simple",
+  "short_name": "Lexnify",
+  "description": "Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. Install Lexnify for quick access to event management on your phone.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "theme_color": "#6366f1",
   "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "events"],
+  "screenshots": [],
   "icons": [
     {
-      "src": "/logo/fav-icon.png",
+      "src": "/logo/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/logo/fav-icon.png",
+      "src": "/logo/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

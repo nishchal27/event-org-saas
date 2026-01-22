@@ -16,7 +16,7 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lexnify.com'
 
 export const metadata: Metadata = {
   title: 'Event Management Made Simple | WhatsApp-First Event & Attendance Tool',
-  description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. Now with unique QR codes per attendee, reminder system, advanced analytics, and more premium features. Start free, no credit card required.',
+  description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. Install Lexnify on your phone for quick access to event management. Now with unique QR codes per attendee, reminder system, advanced analytics, and more premium features. Start free, no credit card required.',
   keywords: [
     'event management',
     'WhatsApp event invitations',
@@ -34,16 +34,16 @@ export const metadata: Metadata = {
     'community event management',
   ],
   openGraph: {
-    title: 'EventOrg - Event Management Made Simple',
-    description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers.',
+    title: 'Lexnify - Event Management Made Simple',
+    description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers. Install Lexnify on your phone for quick access to event management.',
     url: `${siteUrl}/landing`,
-    siteName: 'EventOrg',
+    siteName: 'Lexnify',
     images: [
       {
         url: `${siteUrl}/images/hero/Speaker + audience.jpg`,
         width: 1200,
         height: 630,
-        alt: 'EventOrg - Event Management Platform',
+        alt: 'Lexnify - Event Management Platform',
       },
     ],
     locale: 'en_IN',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'EventOrg - Event Management Made Simple',
+    title: 'Lexnify - Event Management Made Simple',
     description: 'Create events, send WhatsApp invitations, and track attendance — for groups, instructors, and organizers.',
     images: [`${siteUrl}/images/hero/Speaker + audience.jpg`],
   },
