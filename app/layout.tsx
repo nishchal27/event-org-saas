@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next"
 import * as Sentry from '@sentry/nextjs';
 import { Inter } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/react'
 import "./globals.css"
 import { Providers } from "./providers"
 import { ThemeScript } from "./theme-script"
@@ -134,6 +136,8 @@ export default function RootLayout({
             <Providers>{children}</Providers>
             <InstallPrompt />
           </ErrorBoundary>
+          <SpeedInsights />
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
