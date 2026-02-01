@@ -9,7 +9,7 @@ const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 declare global {
   interface Window {
     dataLayer: unknown[]
-    gtag: (...args: unknown[]) => void
+    gtag?: (...args: unknown[]) => void
   }
 }
 
@@ -18,7 +18,7 @@ function PageViewTracker() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (!GA_MEASUREMENT_ID || typeof window.gtag !== 'function') return
+    if (!GA_MEASUREMENT_ID || !window.gtag) return
     const path = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
     window.gtag('config', GA_MEASUREMENT_ID, { page_path: path })
   }, [pathname, searchParams])
