@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { trpc } from '@/lib/trpc-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,9 +9,24 @@ import { Plus, Calendar, Users, MessageSquare, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import { useUser } from '@clerk/nextjs'
+import { useToast } from '@/hooks/use-toast'
 
 export function DashboardClient() {
   const { isLoaded: userLoaded } = useUser()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'early_access') {
+      toast({
+        title: 'Premium access unlocked',
+        description: 'All premium features are now available for your account.',
+      })
+      const url = new URL(window.location.href)
+      url.searchParams.delete('success')
+      window.history.replaceState({}, '', url.pathname + (url.search || ''))
+    }
+  }, [searchParams, toast])
   
   const { data: events, isLoading: eventsLoading } = trpc.event.getAll.useQuery(undefined, {
     staleTime: 60 * 1000,

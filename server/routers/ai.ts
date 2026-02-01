@@ -9,6 +9,7 @@ import {
   type CallToAction,
 } from '@/lib/ai-engine'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import { getEffectivePlan } from '@/lib/early-access'
 
 export const aiRouter = router({
   // Legacy WhatsApp message generation (kept for backward compatibility)
@@ -322,7 +323,7 @@ export const aiRouter = router({
       where: { organizationId: ctx.organization.id },
     })
 
-    const plan = (subscription?.plan || 'free') as PlanType
+    const plan = getEffectivePlan(subscription?.plan)
     const limits = getPlanLimits(plan)
     const limit = limits.ai
     const currentCount = usage?.aiGenerations || 0
@@ -433,7 +434,7 @@ async function checkAILimits(ctx: any, now: Date) {
     where: { organizationId: ctx.organization.id },
   })
 
-  const plan = (subscription?.plan || 'free') as PlanType
+  const plan = getEffectivePlan(subscription?.plan)
   const limits = getPlanLimits(plan)
   const limit = limits.ai
   const currentCount = usage?.aiGenerations || 0

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
+import { isEarlyAccess } from '@/lib/early-access'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -18,6 +19,12 @@ export async function GET(request: NextRequest) {
 
   if (!plan || !['monthly', 'monthly_pro'].includes(plan)) {
     return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  }
+
+  // During early access, grant premium without payment; do not call Stripe
+  if (isEarlyAccess()) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    return NextResponse.redirect(`${baseUrl}/api/early-access/grant?plan=${plan}`)
   }
 
   const priceIds = {

@@ -3,6 +3,7 @@ import { router, protectedProcedure, publicProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { generateSlug } from '@/lib/utils'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import { getEffectivePlan } from '@/lib/early-access'
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number)
@@ -79,7 +80,7 @@ export const eventRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const plan = (subscription?.plan || 'free') as PlanType
+      const plan = getEffectivePlan(subscription?.plan)
       const limits = getPlanLimits(plan)
       const limit = limits.events
       const currentCount = usage?.eventsCreated || 0
@@ -418,7 +419,7 @@ export const eventRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const plan = (subscription?.plan || 'free') as PlanType
+      const plan = getEffectivePlan(subscription?.plan)
       const limits = getPlanLimits(plan)
       const limit = limits.events
       const currentCount = usage?.eventsCreated || 0

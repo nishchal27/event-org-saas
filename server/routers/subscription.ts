@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import { getEffectivePlan } from '@/lib/early-access'
 
 export const subscriptionRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
@@ -9,9 +10,11 @@ export const subscriptionRouter = router({
       throw new TRPCError({ code: 'UNAUTHORIZED' })
     }
 
-    return ctx.prisma.subscription.findUnique({
+    const subscription = await ctx.prisma.subscription.findUnique({
       where: { organizationId: ctx.organization.id },
     })
+    const effectivePlan = getEffectivePlan(subscription?.plan)
+    return subscription ? { ...subscription, effectivePlan } : null
   }),
 
   getUsage: protectedProcedure.query(async ({ ctx }) => {
@@ -34,7 +37,7 @@ export const subscriptionRouter = router({
       where: { organizationId: ctx.organization.id },
     })
 
-    const plan = (subscription?.plan || 'free') as PlanType
+    const plan = getEffectivePlan(subscription?.plan)
     const limits = getPlanLimits(plan)
 
     return {
@@ -49,3 +52,4 @@ export const subscriptionRouter = router({
     }
   }),
 })
+

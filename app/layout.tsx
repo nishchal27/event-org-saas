@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { Analytics } from '@vercel/analytics/react'
+import { GoogleAnalytics } from '@/components/google-analytics'
 import "./globals.css"
 import { Providers } from "./providers"
 import { ThemeScript } from "./theme-script"
@@ -138,6 +139,7 @@ export default function RootLayout({
           </ErrorBoundary>
           <SpeedInsights />
           <Analytics />
+          <GoogleAnalytics />
         </body>
       </html>
     </ClerkProvider>

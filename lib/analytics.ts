@@ -57,6 +57,19 @@ export async function trackEvent(
   }
 }
 
+/** Events to forward to Google Analytics (GA4) when NEXT_PUBLIC_GA_MEASUREMENT_ID is set */
+const GA_EVENTS = new Set<AnalyticsEvent>([
+  'user_signup',
+  'user_login',
+  'event_created',
+  'event_updated',
+  'event_deleted',
+  'check_in_success',
+  'check_in_manual',
+  'whatsapp_invite_sent',
+  'page_view',
+])
+
 async function sendAnalytics(
   event: AnalyticsEvent,
   properties?: AnalyticsProperties,
@@ -64,6 +77,18 @@ async function sendAnalytics(
   organizationId?: string
 ) {
   try {
+    // Forward key events to GA4 (client-only, no-op if GA not loaded)
+    if (typeof window !== 'undefined' && GA_EVENTS.has(event)) {
+      try {
+        const { gtagEvent } = await import('@/lib/gtag')
+        const gaParams: Record<string, string | number | boolean> = { event_category: 'app' }
+        if (properties?.eventId) gaParams.event_id = String(properties.eventId)
+        if (properties?.path) gaParams.page_path = String(properties.path)
+        gtagEvent(event, gaParams)
+      } catch {
+        // GA optional
+      }
+    }
     await fetch('/api/analytics', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
