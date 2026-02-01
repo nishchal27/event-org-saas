@@ -6,6 +6,8 @@ import { Check } from 'lucide-react'
 import { trpc } from '@/lib/trpc-client'
 import Link from 'next/link'
 
+const isEarlyAccess = process.env.NEXT_PUBLIC_EARLY_ACCESS === 'true'
+
 const plans = [
   {
     name: 'Free',
@@ -130,6 +132,17 @@ export function PricingClient() {
                     <Button disabled variant="outline" className="w-full">
                       Current Plan
                     </Button>
+                  ) : isEarlyAccess ? (
+                    <Link href={`/api/early-access/grant?plan=${plan.planId}`} className="block">
+                      <Button
+                        className="w-full"
+                        variant={plan.popular ? 'default' : 'outline'}
+                      >
+                        {plan.planId === 'monthly_pro'
+                          ? 'Unlock Pro (Limited Time)'
+                          : 'Start Premium Access'}
+                      </Button>
+                    </Link>
                   ) : (
                     <Link href={`/api/stripe/checkout?plan=${plan.planId}`} className="block">
                       <Button
@@ -145,6 +158,12 @@ export function PricingClient() {
             )
           })}
         </div>
+
+        {isEarlyAccess && (
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Billing will activate later. No payment required during early access.
+          </p>
+        )}
 
         <div className="mt-12 text-center">
           <p className="text-gray-600">

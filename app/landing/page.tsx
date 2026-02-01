@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Navbar } from '@/components/landing/Navbar'
+import { EarlyAccessBanner } from '@/components/landing/EarlyAccessBanner'
 import { Hero } from '@/components/landing/Hero'
 import { Features } from '@/components/landing/Features'
 import { PremiumFeatures } from '@/components/landing/PremiumFeatures'
@@ -167,6 +168,7 @@ export default function LandingPage() {
       
       <div className="min-h-screen bg-background">
         <Navbar />
+        <EarlyAccessBanner />
         <main>
           <Hero />
           <Features />

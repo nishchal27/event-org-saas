@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import { getEffectivePlan } from '@/lib/early-access'
 
 export const contactRouter = router({
   create: protectedProcedure
@@ -25,7 +26,7 @@ export const contactRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const plan = (subscription?.plan || 'free') as PlanType
+      const plan = getEffectivePlan(subscription?.plan)
       const limits = getPlanLimits(plan)
       const softCap = limits.contacts // Internal soft cap (10k default)
 
@@ -125,7 +126,7 @@ export const contactRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const plan = (subscription?.plan || 'free') as PlanType
+      const plan = getEffectivePlan(subscription?.plan)
       const limits = getPlanLimits(plan)
       const softCap = limits.contacts // Internal soft cap
 

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
+import { getEffectivePlan } from '@/lib/early-access'
 import twilio from 'twilio'
 import { prisma } from '@/lib/prisma'
 
@@ -35,7 +36,7 @@ export const whatsappRouter = router({
         where: { organizationId: ctx.organization.id },
       })
 
-      const plan = (subscription?.plan || 'free') as PlanType
+      const plan = getEffectivePlan(subscription?.plan)
       const limits = getPlanLimits(plan)
       const limit = limits.whatsapp
       const currentCount = usage?.whatsappSent || 0

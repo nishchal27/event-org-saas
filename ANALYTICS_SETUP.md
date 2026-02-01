@@ -5,6 +5,7 @@ This app includes a comprehensive, lightweight analytics and error tracking syst
 ## Features
 
 - ✅ **Centralized Logging**: All errors and important events are logged through a single system
+- ✅ **Google Analytics (GA4)**: Page views and key app events in Google Analytics (optional)
 - ✅ **Sentry Integration**: Professional error tracking (free tier available)
 - ✅ **Analytics Dashboard**: Track key metrics and errors in real-time
 - ✅ **Performance Optimized**: All tracking is async and non-blocking
@@ -34,7 +35,21 @@ SENTRY_PROJECT="your-project"
 npx @sentry/wizard@latest -i nextjs
 ```
 
-### 2. Database Migration
+### 2. Google Analytics (GA4) (Optional)
+
+To track page views and key app events in Google Analytics:
+
+1. Create a GA4 property at [analytics.google.com](https://analytics.google.com)
+2. Add a web data stream and copy your **Measurement ID** (format: `G-XXXXXXXXXX`)
+3. Add to your `.env`:
+
+```env
+NEXT_PUBLIC_GA_MEASUREMENT_ID="G-XXXXXXXXXX"
+```
+
+4. Restart the app. Page views (including client-side navigation) and selected app events (e.g. `user_signup`, `event_created`, `check_in_success`) are sent to GA4. Omit the variable to disable GA.
+
+### 3. Database Migration
 
 Run the migration to add the analytics table:
 
@@ -44,7 +59,7 @@ npx prisma db push
 npx prisma migrate dev --name add_analytics
 ```
 
-### 3. Access Analytics Dashboard
+### 4. Access Analytics Dashboard
 
 Navigate to `/analytics` in your dashboard to view:
 - Total events and check-ins
@@ -134,8 +149,9 @@ All tracking is designed to be non-blocking:
 ## Viewing Data
 
 1. **Analytics Dashboard**: `/analytics` - Real-time metrics and charts
-2. **Sentry Dashboard**: [sentry.io](https://sentry.io) - Detailed error tracking with stack traces
-3. **Database**: Query `analytics_events` table directly for custom analysis
+2. **Google Analytics**: [analytics.google.com](https://analytics.google.com) - Page views and app events (when GA is configured)
+3. **Sentry Dashboard**: [sentry.io](https://sentry.io) - Detailed error tracking with stack traces
+4. **Database**: Query `analytics_events` table directly for custom analysis
 
 ## Cost
 
@@ -154,6 +170,11 @@ All tracking is designed to be non-blocking:
 - Ensure database migration ran successfully
 - Check that events are being tracked (check network tab for `/api/analytics` calls)
 - Verify user has organization access
+
+### Google Analytics not receiving data?
+- Confirm `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set in `.env` (format `G-XXXXXXXXXX`)
+- GA4 can take 24–48 hours to show data; use DebugView in GA4 for real-time checks
+- Ensure ad blockers or privacy extensions are not blocking `googletagmanager.com`
 
 ### Performance concerns?
 - All tracking is async and won't block the UI
