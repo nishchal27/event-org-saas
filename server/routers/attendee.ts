@@ -1,8 +1,225 @@
 import { z } from 'zod'
 import { router, publicProcedure, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
+import { DateTime } from 'luxon'
+import { computeEventSchedule, gateCheckIn, gateRegistration } from '@/lib/event-schedule'
+import { normalizePhoneMixed } from '@/lib/phone'
+import { verifyVenuePin } from '@/lib/venue-pin'
+
+async function publicCheckInByCode(
+  ctx: any,
+  input: { qrCode: string; phone?: string; pin?: string }
+) {
+  // 1) Try attendee QR
+  let attendee = await ctx.prisma.attendee.findUnique({
+    where: { attendeeQrCode: input.qrCode },
+    include: { event: true },
+  })
+
+  // 2) Else try event QR
+  if (!attendee) {
+    const event = await ctx.prisma.event.findUnique({
+      where: { qrCode: input.qrCode },
+    })
+
+    if (!event) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
+    }
+
+    // Gate check-in by event time window
+    const schedule = computeEventSchedule({
+      eventDate: event.eventDate,
+      endDate: event.endDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      timeZone: event.timeZone,
+      checkInOpensMinutesBefore: event.checkInOpensMinutesBefore,
+      checkInClosesMinutesAfter: event.checkInClosesMinutesAfter,
+      registrationClosesMinutesBeforeStart: event.registrationClosesMinutesBeforeStart,
+    })
+    const now = DateTime.now().setZone(schedule.timeZone)
+    const gate = gateCheckIn(now, schedule)
+    if (!gate.ok) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message:
+          gate.reason === 'checkin_not_open'
+            ? 'Check-in has not opened yet'
+            : 'Check-in is closed for this event',
+      })
+    }
+
+    // PIN gate (when enabled)
+    if (event.selfCheckInEnabled) {
+      if (!event.selfCheckInPinHash) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Self check-in is not configured for this event' })
+      }
+      if (!input.pin || input.pin.trim().length === 0) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Venue PIN is required' })
+      }
+      if (!verifyVenuePin(input.pin, event.selfCheckInPinHash)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid venue PIN' })
+      }
+    }
+
+    if (!input.phone) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Phone number required for event QR check-in',
+      })
+    }
+
+    const normalized = normalizePhoneMixed(input.phone)
+    const phoneCandidates = Array.from(
+      new Set(
+        [
+          normalized.canonicalForLookup,
+          input.phone.trim(),
+          normalized.digits,
+          normalized.e164OrNull ?? undefined,
+        ].filter(Boolean) as string[]
+      )
+    )
+
+    for (const phoneCandidate of phoneCandidates) {
+      attendee = await ctx.prisma.attendee.findUnique({
+        where: {
+          eventId_phone: {
+            eventId: event.id,
+            phone: phoneCandidate,
+          },
+        },
+        include: { event: true },
+      })
+      if (attendee) break
+    }
+
+    if (!attendee) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Attendee not found for this event',
+      })
+    }
+
+    // Opportunistic normalization backfill
+    if (attendee.phone !== normalized.canonicalForLookup || attendee.phoneNormalized !== normalized.e164OrNull) {
+      attendee = await ctx.prisma.attendee.update({
+        where: { id: attendee.id },
+        data: {
+          phone: normalized.canonicalForLookup,
+          phoneNormalized: normalized.e164OrNull,
+        },
+        include: { event: true },
+      })
+    }
+  }
+
+  // Gate check-in by event time window (attendee QR or event QR resolved)
+  const schedule = computeEventSchedule({
+    eventDate: attendee.event.eventDate,
+    endDate: attendee.event.endDate,
+    startTime: attendee.event.startTime,
+    endTime: attendee.event.endTime,
+    timeZone: attendee.event.timeZone,
+    checkInOpensMinutesBefore: attendee.event.checkInOpensMinutesBefore,
+    checkInClosesMinutesAfter: attendee.event.checkInClosesMinutesAfter,
+    registrationClosesMinutesBeforeStart: attendee.event.registrationClosesMinutesBeforeStart,
+  })
+  const now = DateTime.now().setZone(schedule.timeZone)
+  const gate = gateCheckIn(now, schedule)
+  if (!gate.ok) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message:
+        gate.reason === 'checkin_not_open'
+          ? 'Check-in has not opened yet'
+          : 'Check-in is closed for this event',
+    })
+  }
+
+  // PIN gate for attendee QR as well (prevents remote self check-in with shared attendee QR)
+  if (attendee.event.selfCheckInEnabled) {
+    if (!attendee.event.selfCheckInPinHash) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Self check-in is not configured for this event' })
+    }
+    if (!input.pin || input.pin.trim().length === 0) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Venue PIN is required' })
+    }
+    if (!verifyVenuePin(input.pin, attendee.event.selfCheckInPinHash)) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid venue PIN' })
+    }
+  }
+
+  if (attendee.checkedIn) {
+    return attendee
+  }
+
+  const isAttendeeQr = attendee.attendeeQrCode === input.qrCode
+  const checkInMethod = isAttendeeQr ? 'self_qr' : 'event_qr'
+
+  return ctx.prisma.attendee.update({
+    where: { id: attendee.id },
+    data: {
+      checkedIn: true,
+      checkedInAt: new Date(),
+      checkInMethod,
+    },
+    include: { event: true },
+  })
+}
 
 export const attendeeRouter = router({
+  getCheckInContext: publicProcedure
+    .input(z.object({ qrCode: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const attendee = await ctx.prisma.attendee.findUnique({
+        where: { attendeeQrCode: input.qrCode },
+        include: { event: true },
+      })
+
+      const event = attendee
+        ? attendee.event
+        : await ctx.prisma.event.findUnique({ where: { qrCode: input.qrCode } })
+
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
+      }
+
+      const schedule = computeEventSchedule({
+        eventDate: event.eventDate,
+        endDate: event.endDate,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        timeZone: event.timeZone,
+        checkInOpensMinutesBefore: event.checkInOpensMinutesBefore,
+        checkInClosesMinutesAfter: event.checkInClosesMinutesAfter,
+        registrationClosesMinutesBeforeStart: event.registrationClosesMinutesBeforeStart,
+      })
+      const now = DateTime.now().setZone(schedule.timeZone)
+      const gate = gateCheckIn(now, schedule)
+
+      return {
+        kind: attendee ? ('attendee' as const) : ('event' as const),
+        event: {
+          id: event.id,
+          title: event.title,
+          location: event.location,
+          timeZone: event.timeZone,
+          selfCheckInEnabled: event.selfCheckInEnabled,
+          pinRequired: event.selfCheckInEnabled,
+        },
+        requirements: {
+          phoneRequired: !attendee,
+          pinRequired: event.selfCheckInEnabled,
+        },
+        window: {
+          status: gate.ok ? ('open' as const) : gate.reason === 'checkin_not_open' ? ('not_open' as const) : ('closed' as const),
+          checkInOpensAt: schedule.checkInOpensAt.toISO(),
+          checkInClosesAt: schedule.checkInClosesAt.toISO(),
+        },
+      }
+    }),
+
   checkIn: protectedProcedure
     .input(
       z.object({
@@ -37,6 +254,28 @@ export const attendeeRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Attendee not found' })
       }
 
+      // Gate check-in by event time window
+      const schedule = computeEventSchedule({
+        eventDate: event.eventDate,
+        endDate: event.endDate,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        timeZone: event.timeZone,
+        checkInOpensMinutesBefore: event.checkInOpensMinutesBefore,
+        checkInClosesMinutesAfter: event.checkInClosesMinutesAfter,
+        registrationClosesMinutesBeforeStart: event.registrationClosesMinutesBeforeStart,
+      })
+      const now = DateTime.now().setZone(schedule.timeZone)
+      const gate = gateCheckIn(now, schedule)
+      if (!gate.ok) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: gate.reason === 'checkin_not_open'
+            ? 'Check-in has not opened yet'
+            : 'Check-in is closed for this event',
+        })
+      }
+
       return ctx.prisma.attendee.update({
         where: { id: input.attendeeId },
         data: {
@@ -52,67 +291,23 @@ export const attendeeRouter = router({
       z.object({
         qrCode: z.string(),
         phone: z.string().optional(),
+        pin: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // First try to find by attendee QR code (new method)
-      let attendee = await ctx.prisma.attendee.findUnique({
-        where: {
-          attendeeQrCode: input.qrCode,
-        },
-        include: {
-          event: true,
-        },
+      return publicCheckInByCode(ctx, input)
+    }),
+
+  selfCheckIn: publicProcedure
+    .input(
+      z.object({
+        qrCode: z.string(),
+        phone: z.string().optional(),
+        pin: z.string(),
       })
-
-      // If not found, try event QR code (fallback method)
-      if (!attendee) {
-        const event = await ctx.prisma.event.findUnique({
-          where: {
-            qrCode: input.qrCode,
-          },
-        })
-
-        if (!event) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
-        }
-
-        if (!input.phone) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Phone number required for event QR check-in' })
-        }
-
-        attendee = await ctx.prisma.attendee.findUnique({
-          where: {
-            eventId_phone: {
-              eventId: event.id,
-              phone: input.phone,
-            },
-          },
-          include: {
-            event: true,
-          },
-        })
-
-        if (!attendee) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Attendee not found for this event' })
-        }
-      }
-
-      if (attendee.checkedIn) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already checked in' })
-      }
-
-      // Determine check-in method
-      const checkInMethod = attendee.attendeeQrCode === input.qrCode ? 'qr_scan' : 'event_qr'
-
-      return ctx.prisma.attendee.update({
-        where: { id: attendee.id },
-        data: {
-          checkedIn: true,
-          checkedInAt: new Date(),
-          checkInMethod: checkInMethod,
-        },
-      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return publicCheckInByCode(ctx, input)
     }),
 
   checkInByAttendeeQR: protectedProcedure
@@ -139,13 +334,35 @@ export const attendeeRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid QR code' })
       }
 
+      // Gate check-in by event time window (staff scanning)
+      const schedule = computeEventSchedule({
+        eventDate: attendee.event.eventDate,
+        endDate: attendee.event.endDate,
+        startTime: attendee.event.startTime,
+        endTime: attendee.event.endTime,
+        timeZone: attendee.event.timeZone,
+        checkInOpensMinutesBefore: attendee.event.checkInOpensMinutesBefore,
+        checkInClosesMinutesAfter: attendee.event.checkInClosesMinutesAfter,
+        registrationClosesMinutesBeforeStart: attendee.event.registrationClosesMinutesBeforeStart,
+      })
+      const now = DateTime.now().setZone(schedule.timeZone)
+      const gate = gateCheckIn(now, schedule)
+      if (!gate.ok) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: gate.reason === 'checkin_not_open'
+            ? 'Check-in has not opened yet'
+            : 'Check-in is closed for this event',
+        })
+      }
+
       // Verify attendee belongs to organization's event
       if (attendee.event.organizationId !== ctx.organization.id) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'This QR code is not for your organization' })
       }
 
       if (attendee.checkedIn) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Already checked in' })
+        return attendee
       }
 
       return ctx.prisma.attendee.update({
@@ -187,15 +404,54 @@ export const attendeeRouter = router({
         })
       }
 
-      // Check if attendee already exists
-      const existingAttendee = await ctx.prisma.attendee.findUnique({
-        where: {
-          eventId_phone: {
-            eventId: event.id,
-            phone: input.phone,
-          },
-        },
+      // Gate registration by event time window
+      const schedule = computeEventSchedule({
+        eventDate: event.eventDate,
+        endDate: event.endDate,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        timeZone: event.timeZone,
+        checkInOpensMinutesBefore: event.checkInOpensMinutesBefore,
+        checkInClosesMinutesAfter: event.checkInClosesMinutesAfter,
+        registrationClosesMinutesBeforeStart: event.registrationClosesMinutesBeforeStart,
       })
+      const now = DateTime.now().setZone(schedule.timeZone)
+      const regGate = gateRegistration(now, schedule, event.registrationClosed)
+      if (!regGate.ok) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: regGate.reason === 'registration_ended'
+            ? 'Registration has ended for this event'
+            : 'Registration for this event is closed',
+        })
+      }
+
+      const normalized = normalizePhoneMixed(input.phone)
+
+      // Check if attendee already exists
+      const phoneCandidates = Array.from(
+        new Set(
+          [
+            normalized.canonicalForLookup,
+            input.phone.trim(),
+            normalized.digits,
+            normalized.e164OrNull ?? undefined,
+          ].filter(Boolean) as string[]
+        )
+      )
+
+      let existingAttendee = null as any
+      for (const phoneCandidate of phoneCandidates) {
+        existingAttendee = await ctx.prisma.attendee.findUnique({
+          where: {
+            eventId_phone: {
+              eventId: event.id,
+              phone: phoneCandidate,
+            },
+          },
+        })
+        if (existingAttendee) break
+      }
 
       if (existingAttendee) {
         // Check capacity when updating to confirmed
@@ -260,6 +516,8 @@ export const attendeeRouter = router({
             status: input.status,
             isWaitlist: isWaitlist,
             attendeeQrCode: attendeeQrCode,
+            phone: normalized.canonicalForLookup,
+            phoneNormalized: normalized.e164OrNull,
           },
         })
       }
@@ -284,7 +542,9 @@ export const attendeeRouter = router({
       const contact = await ctx.prisma.contact.findFirst({
         where: {
           organizationId: event.organizationId,
-          phone: input.phone,
+          phone: {
+            in: phoneCandidates,
+          },
         },
       })
 
@@ -313,7 +573,8 @@ export const attendeeRouter = router({
           eventId: event.id,
           contactId: contact?.id,
           name: input.name,
-          phone: input.phone,
+          phone: normalized.canonicalForLookup,
+          phoneNormalized: normalized.e164OrNull,
           email: input.email,
           status: input.status,
           isWaitlist: isWaitlist,

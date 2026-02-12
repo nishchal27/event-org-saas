@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/landing',
   '/event(.*)',
+  '/checkin(.*)',
   '/api/trpc(.*)',
   '/api/stripe/webhook',
   '/api/webhooks/clerk',
@@ -20,27 +21,28 @@ export default clerkMiddleware(async (auth, req) => {
   const pathname = req.nextUrl.pathname
   const method = req.method
 
-  // LOG: Every request (can disable after debugging)
-  console.log(`[MIDDLEWARE] ${method} ${pathname}`)
+  const isDev = process.env.NODE_ENV === 'development'
+  // Avoid noisy logs in production (perf + privacy)
+  if (isDev) console.log(`[MIDDLEWARE] ${method} ${pathname}`)
 
   // Allow public routes to pass through WITHOUT auth check
   if (isPublicRoute(req)) {
-    console.log(`[MIDDLEWARE] ✅ Public route, allowing: ${pathname}`)
+    if (isDev) console.log(`[MIDDLEWARE] ✅ Public route, allowing: ${pathname}`)
     return NextResponse.next()
   }
 
   // For all other routes, check authentication
-  console.log(`[MIDDLEWARE] 🔒 Protected route, checking auth: ${pathname}`)
+  if (isDev) console.log(`[MIDDLEWARE] 🔒 Protected route, checking auth: ${pathname}`)
   const { userId } = await auth()
   
   if (!userId) {
-    console.log(`[MIDDLEWARE] ❌ Not authenticated, redirecting to sign-in`)
+    if (isDev) console.log(`[MIDDLEWARE] ❌ Not authenticated, redirecting to sign-in`)
     const signInUrl = new URL('/sign-in', req.url)
     signInUrl.searchParams.set('redirect_url', req.url)
     return NextResponse.redirect(signInUrl)
   }
 
-  console.log(`[MIDDLEWARE] ✅ Authenticated (userId: ${userId}), allowing: ${pathname}`)
+  if (isDev) console.log(`[MIDDLEWARE] ✅ Authenticated (userId: ${userId}), allowing: ${pathname}`)
   return NextResponse.next()
 })
 

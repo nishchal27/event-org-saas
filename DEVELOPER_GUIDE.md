@@ -110,6 +110,8 @@ event-org-saas/
 - **Prisma**: Next-generation ORM
 - **PostgreSQL**: Relational database
 - **Zod**: Schema validation
+- **Luxon**: Timezone-safe date/time computations (event windows)
+- **libphonenumber-js**: Phone parsing/normalization (mixed IN-default + international)
 
 ### Authentication & Payments
 - **Clerk**: Authentication & user management
@@ -187,6 +189,13 @@ model Event {
   customField2Value String?
   
   registrationClosed Boolean @default(false)
+  // Premium check-in controls
+  timeZone                          String  @default("Asia/Kolkata")
+  registrationClosesMinutesBeforeStart Int   @default(0)
+  checkInOpensMinutesBefore         Int     @default(30)
+  checkInClosesMinutesAfter         Int     @default(240)
+  selfCheckInEnabled                Boolean @default(false)
+  selfCheckInPinHash                String? // hashed, never plaintext
   deletedAt      DateTime?  // Soft delete
   
   attendees      Attendee[]
@@ -205,6 +214,7 @@ model Attendee {
   contactId      String?
   name           String
   phone          String
+  phoneNormalized String?
   email          String?
   status         String
   isWaitlist     Boolean   @default(false)
@@ -221,10 +231,50 @@ model Attendee {
   @@index([eventId])
   @@index([contactId])
   @@index([attendeeQrCode])
+  @@index([phoneNormalized])
 }
 ```
 
 **For complete schema, see `prisma/schema.prisma`**
+
+---
+
+## Event Scheduling, Timezones, and Windows (Critical)
+
+EventOrg enforces **professional boundaries** so registration and check-ins cannot happen outside the allowed time window.
+
+### Source of truth
+- **Dates**: `Event.eventDate` and `Event.endDate` are treated as **date-only values** (coming from a date input like `YYYY-MM-DD`).
+- **Times**: `Event.startTime`/`Event.endTime` are strings in `HH:mm`.
+- **Timezone**: `Event.timeZone` is an IANA timezone string (default `Asia/Kolkata`).
+
+### Computation
+The authoritative computation lives in `lib/event-schedule.ts`:
+- `computeEventSchedule`
+- `gateRegistration`
+- `gateCheckIn`
+
+It produces:
+- `registrationClosesAt`
+- `checkInOpensAt`
+- `checkInClosesAt`
+
+Defaults:
+- `checkInOpensMinutesBefore = 30`
+- `checkInClosesMinutesAfter = 240`
+- `registrationClosesMinutesBeforeStart = 0`
+
+### Enforcement points
+Time windows are enforced in `server/routers/attendee.ts`:
+- `attendee.register`
+- `attendee.checkIn` (manual)
+- `attendee.checkInByQR` (public)
+- `attendee.selfCheckIn` (public)
+- `attendee.checkInByAttendeeQR` (staff scan)
+
+### Edge cases
+- If `endTime` is missing, the schedule assumes **+2 hours** (avoids “never-ending check-in”).
+- Multi-day events are supported via `endDate`.
 
 ---
 
@@ -273,6 +323,7 @@ export const appRouter = router({
 - `event.getAll` - Get all events
 - `event.getById` - Get event by ID
 - `event.getBySlug` - Get public event by slug
+- `event.getCheckInSummary` - Lightweight check-in counts for scanner UI (perf)
 - `event.update` - Update event
 - `event.duplicate` - Duplicate event with date offset
 - `event.delete` - Soft delete event
@@ -312,10 +363,39 @@ export const appRouter = router({
 #### Attendee Router
 - `attendee.register` - Register for public event
 - `attendee.checkIn` - Manual check-in
-- `attendee.checkInByQR` - QR-based check-in (public)
+- `attendee.getCheckInContext` - Resolve QR kind + requirements + window status (public)
+- `attendee.checkInByQR` - QR-based check-in (public, supports attendee QR + legacy event QR)
+- `attendee.selfCheckIn` - PIN-secured self check-in (public, recommended)
 - `attendee.checkInByAttendeeQR` - Check-in by attendee QR (protected)
 
 **For complete API documentation with input/output schemas, see the full API reference in the codebase or check individual router files in `server/routers/`.**
+
+---
+
+## Check-in System (Premium) — How It Works
+
+There are **two first-class check-in modes**:
+
+1) **Self check-in (recommended default)**
+- Attendee scans the **Event QR** printed at the venue.
+- Attendee enters **phone** (+ **venue PIN** when enabled).
+- Backend enforces time window and PIN.
+
+2) **Staff scanning (optional)**
+- Organizer opens `/events/[id]/scan`.
+- Staff scans **Attendee QR** from attendee’s phone.
+- Backend enforces org ownership + time window.
+
+### Public routes involved
+- `/event/[slug]`: registration page
+- `/checkin/[qrCode]`: smart public check-in UI (event QR or attendee QR)
+
+### Security: Venue PIN
+- PIN is stored hashed in `Event.selfCheckInPinHash`.
+- Hash/verify utilities: `lib/venue-pin.ts` (`hashVenuePin`, `verifyVenuePin`)
+
+### Idempotency
+- If an attendee is already checked in, the API returns success-like data (no scary errors).
 
 ---
 
@@ -384,9 +464,10 @@ npx prisma studio
 
 ### Premium Features Setup
 
-**QR Code Package (Optional):**
+**QR + Self Check-in Dependencies:**
 ```bash
-npm install qrcode @types/qrcode html5-qrcode
+npm install qrcode @types/qrcode html5-qrcode luxon libphonenumber-js
+npm install -D @types/luxon
 ```
 
 **For detailed environment setup, see the [Service Integrations](#service-integrations) section below.**
@@ -479,6 +560,12 @@ All components are located in `components/ui/`:
 - `components/toaster.tsx` - Toast notifications
 - `components/qr-code-display.tsx` - QR code display
 - `components/attendee-qr-display.tsx` - Attendee QR display
+- `components/pwa-reload-on-update.tsx` - Prevent stale PWA clients after deploy
+
+### Key new libraries (premium check-in)
+- `lib/event-schedule.ts` - Time window computation + gating
+- `lib/phone.ts` - Mixed phone normalization (IN-friendly + international)
+- `lib/venue-pin.ts` - PIN hashing/verification (scrypt)
 
 ---
 
@@ -488,7 +575,7 @@ All components are located in `components/ui/`:
 
 **Middleware:** `middleware.ts`
 - Protects dashboard routes
-- Public routes: `/`, `/event/*`, `/api/trpc/*`, `/api/stripe/webhook`
+- Public routes: `/`, `/event/*`, `/checkin/*`, `/api/trpc/*`, `/api/stripe/webhook`
 
 **tRPC Context:** `lib/trpc.ts`
 - Gets auth from Clerk
@@ -505,6 +592,7 @@ All components are located in `components/ui/`:
 **Public Routes:**
 - `/` (redirects to dashboard or sign-in)
 - `/event/[slug]` (public event pages)
+- `/checkin/[qrCode]` (public self check-in)
 - `/sign-in`, `/sign-up`
 
 ---
@@ -597,5 +685,5 @@ npx prisma db push --force-reset
 
 ---
 
-**Last Updated:** 2024
-**Version:** 2.0.0
+**Last Updated:** 2026
+**Version:** 3.0.0

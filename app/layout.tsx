@@ -10,6 +10,7 @@ import { Providers } from "./providers"
 import { ThemeScript } from "./theme-script"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { InstallPrompt } from "@/components/install-prompt"
+import { PwaReloadOnUpdate } from "@/components/pwa-reload-on-update"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -136,6 +137,7 @@ export default function RootLayout({
           <ErrorBoundary>
             <Providers>{children}</Providers>
             <InstallPrompt />
+            <PwaReloadOnUpdate />
           </ErrorBoundary>
           <SpeedInsights />
           <Analytics />

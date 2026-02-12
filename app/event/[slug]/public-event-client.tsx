@@ -11,10 +11,38 @@ import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { AttendeeQRDisplay } from '@/components/attendee-qr-display'
+import Image from 'next/image'
+import { trackEvent } from '@/lib/analytics'
 
-export function PublicEventClient({ slug }: { slug: string }) {
+type PublicEventData = {
+  title: string
+  description: string
+  eventDate: Date
+  endDate: Date | null
+  startTime: string
+  endTime: string | null
+  location: string
+  locationType: string
+  imageUrl: string | null
+  additionalNotes: string | null
+  maxCapacity: number | null
+  customField1Label: string | null
+  customField1Value: string | null
+  customField2Label: string | null
+  customField2Value: string | null
+  registrationClosed: boolean
+  organization: {
+    name: string
+    logo: string | null
+    accentColor: string | null
+    backgroundColor: string | null
+    fontStyle: string | null
+  } | null
+} | null
+
+export function PublicEventClient({ slug, initialEvent }: { slug: string; initialEvent: PublicEventData }) {
   const { toast } = useToast()
-  const { data: event, isLoading } = trpc.event.getBySlug.useQuery({ slug })
+  const event = initialEvent
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -38,12 +66,22 @@ export function PublicEventClient({ slug }: { slug: string }) {
         title: 'Success!',
         description: message,
       })
+
+      trackEvent('registration_success', {
+        eventSlug: slug,
+        status,
+        isWaitlist: !!data.isWaitlist,
+      })
     },
     onError: (error) => {
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
+      })
+      trackEvent('registration_error', {
+        eventSlug: slug,
+        errorMessage: error.message,
       })
     },
   })
@@ -67,14 +105,6 @@ export function PublicEventClient({ slug }: { slug: string }) {
       email: email || null,
       status,
     })
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center text-muted-foreground">Loading event...</div>
-      </div>
-    )
   }
 
   if (!event) {
@@ -153,11 +183,16 @@ export function PublicEventClient({ slug }: { slug: string }) {
           {/* Organization Logo/Name Header */}
           <div className="mb-6 flex items-center justify-center">
             {orgLogo ? (
-              <img
-                src={orgLogo}
-                alt={orgName}
-                className="h-16 w-auto object-contain"
-              />
+              <div className="relative h-16 w-40">
+                <Image
+                  src={orgLogo}
+                  alt={orgName}
+                  fill
+                  sizes="160px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
             ) : (
               <h2
                 className="text-2xl font-bold"
@@ -176,10 +211,13 @@ export function PublicEventClient({ slug }: { slug: string }) {
           >
             {event.imageUrl && (
               <div className="relative h-64 w-full">
-                <img
+                <Image
                   src={event.imageUrl}
                   alt={event.title}
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 768px"
+                  className="object-cover"
+                  priority
                 />
               </div>
             )}

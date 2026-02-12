@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { generateSlug } from '@/lib/utils'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 import { getEffectivePlan } from '@/lib/early-access'
+import { hashVenuePin } from '@/lib/venue-pin'
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number)
@@ -261,6 +262,44 @@ export const eventRouter = router({
       return event
     }),
 
+  getCheckInSummary: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+
+      const event = await ctx.prisma.event.findFirst({
+        where: {
+          id: input.id,
+          organizationId: ctx.organization.id,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          title: true,
+          organizationId: true,
+        },
+      })
+
+      if (!event) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+
+      const [totalAttendees, checkedInCount, qrScannedCount] = await Promise.all([
+        ctx.prisma.attendee.count({ where: { eventId: event.id } }),
+        ctx.prisma.attendee.count({ where: { eventId: event.id, checkedIn: true } }),
+        ctx.prisma.attendee.count({ where: { eventId: event.id, checkInMethod: 'qr_scan' } }),
+      ])
+
+      return {
+        ...event,
+        totalAttendees,
+        checkedInCount,
+        qrScannedCount,
+      }
+    }),
+
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -310,6 +349,12 @@ export const eventRouter = router({
             customField2Label: z.string().optional().nullable(),
             customField2Value: z.string().optional().nullable(),
             maxCapacity: z.number().int().positive().optional().nullable(),
+            timeZone: z.string().min(1).optional(),
+            registrationClosesMinutesBeforeStart: z.number().int().min(0).max(7 * 24 * 60).optional(),
+            checkInOpensMinutesBefore: z.number().int().min(0).max(24 * 60).optional(),
+            checkInClosesMinutesAfter: z.number().int().min(0).max(7 * 24 * 60).optional(),
+            selfCheckInEnabled: z.boolean().optional(),
+            selfCheckInPin: z.string().optional().nullable(),
           })
           .superRefine((data, ctx) => {
             // Only validate dates if both are provided
@@ -375,6 +420,24 @@ export const eventRouter = router({
       if (input.data.customField2Label !== undefined) updateData.customField2Label = input.data.customField2Label || null
       if (input.data.customField2Value !== undefined) updateData.customField2Value = input.data.customField2Value || null
       if (input.data.maxCapacity !== undefined) updateData.maxCapacity = input.data.maxCapacity || null
+      if (input.data.timeZone !== undefined) updateData.timeZone = input.data.timeZone
+      if (input.data.registrationClosesMinutesBeforeStart !== undefined)
+        updateData.registrationClosesMinutesBeforeStart = input.data.registrationClosesMinutesBeforeStart
+      if (input.data.checkInOpensMinutesBefore !== undefined) updateData.checkInOpensMinutesBefore = input.data.checkInOpensMinutesBefore
+      if (input.data.checkInClosesMinutesAfter !== undefined) updateData.checkInClosesMinutesAfter = input.data.checkInClosesMinutesAfter
+      if (input.data.selfCheckInEnabled !== undefined) updateData.selfCheckInEnabled = input.data.selfCheckInEnabled
+
+      if (input.data.selfCheckInPin !== undefined) {
+        if (input.data.selfCheckInPin === null || input.data.selfCheckInPin.trim().length === 0) {
+          updateData.selfCheckInPinHash = null
+        } else {
+          const pin = input.data.selfCheckInPin.trim()
+          if (!/^[0-9]{4,12}$/.test(pin)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'PIN must be 4-12 digits' })
+          }
+          updateData.selfCheckInPinHash = hashVenuePin(pin)
+        }
+      }
 
       return ctx.prisma.event.update({
         where: { id: input.id },

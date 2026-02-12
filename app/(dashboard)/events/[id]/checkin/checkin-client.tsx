@@ -7,10 +7,11 @@ import { QRCodeDisplay } from '@/components/qr-code-display'
 import { ArrowLeft, Users, CheckCircle2, Clock, ScanLine, QrCode as QrCodeIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 
 export function CheckInClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -18,8 +19,16 @@ export function CheckInClient({ eventId }: { eventId: string }) {
   const utils = trpc.useUtils()
   const { data: event, isLoading } = trpc.event.getById.useQuery({ id: eventId })
   const checkInMutation = trpc.attendee.checkIn.useMutation()
+  const updateEventMutation = trpc.event.update.useMutation()
   const [searchPhone, setSearchPhone] = useState('')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
+  const [selfCheckInEnabled, setSelfCheckInEnabled] = useState(false)
+  const [venuePin, setVenuePin] = useState('')
+  const [checkInOpensMinutesBefore, setCheckInOpensMinutesBefore] = useState<number>(30)
+  const [checkInClosesMinutesAfter, setCheckInClosesMinutesAfter] = useState<number>(240)
+  const [registrationClosesMinutesBeforeStart, setRegistrationClosesMinutesBeforeStart] = useState<number>(0)
+  const [timeZone, setTimeZone] = useState<string>('Asia/Kolkata')
+  const [didInitSettings, setDidInitSettings] = useState(false)
 
   const handleManualCheckIn = async (attendeeId: string) => {
     setSelectedAttendeeId(attendeeId)
@@ -54,6 +63,16 @@ export function CheckInClient({ eventId }: { eventId: string }) {
   const checkedInCount = attendees.filter((a) => a.checkedIn).length
   const totalAttendees = attendees.length
 
+  useEffect(() => {
+    if (!event || didInitSettings) return
+    setSelfCheckInEnabled(!!event.selfCheckInEnabled)
+    setCheckInOpensMinutesBefore(event.checkInOpensMinutesBefore ?? 30)
+    setCheckInClosesMinutesAfter(event.checkInClosesMinutesAfter ?? 240)
+    setRegistrationClosesMinutesBeforeStart(event.registrationClosesMinutesBeforeStart ?? 0)
+    setTimeZone(event.timeZone ?? 'Asia/Kolkata')
+    setDidInitSettings(true)
+  }, [event, didInitSettings])
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -75,6 +94,46 @@ export function CheckInClient({ eventId }: { eventId: string }) {
         </div>
       </div>
     )
+  }
+
+  const handleSaveSelfCheckInSettings = async () => {
+    try {
+      if (selfCheckInEnabled) {
+        const pinTrimmed = venuePin.trim()
+        if (!/^[0-9]{4,12}$/.test(pinTrimmed)) {
+          toast({
+            title: 'Invalid PIN',
+            description: 'PIN must be 4-12 digits.',
+            variant: 'destructive',
+          })
+          return
+        }
+      }
+
+      await updateEventMutation.mutateAsync({
+        id: eventId,
+        data: {
+          selfCheckInEnabled,
+          selfCheckInPin: selfCheckInEnabled ? venuePin.trim() : null,
+          checkInOpensMinutesBefore,
+          checkInClosesMinutesAfter,
+          registrationClosesMinutesBeforeStart,
+          timeZone,
+        },
+      })
+
+      toast({
+        title: 'Saved',
+        description: 'Self check-in settings updated.',
+      })
+      utils.event.getById.invalidate({ id: eventId })
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err?.message || 'Failed to save settings',
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -147,15 +206,105 @@ export function CheckInClient({ eventId }: { eventId: string }) {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Self Check-in Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Self Check-in Settings</CardTitle>
+              <CardDescription>
+                Enable attendee self check-in via the event QR. Recommended for no-staff entry.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="font-medium">Enable Self Check-in</p>
+                  <p className="text-xs text-muted-foreground">
+                    Requires a venue PIN to prevent remote check-ins.
+                  </p>
+                </div>
+                <Switch checked={selfCheckInEnabled} onCheckedChange={setSelfCheckInEnabled} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="venuePin">Venue PIN</Label>
+                  <Input
+                    id="venuePin"
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="4-12 digits"
+                    value={venuePin}
+                    onChange={(e) => setVenuePin(e.target.value)}
+                    disabled={!selfCheckInEnabled}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="timeZone">Time Zone</Label>
+                  <Input
+                    id="timeZone"
+                    placeholder="e.g. Asia/Kolkata"
+                    value={timeZone}
+                    onChange={(e) => setTimeZone(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Use an IANA timezone (e.g. Asia/Kolkata, America/New_York)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="opensBefore">Opens (min before)</Label>
+                  <Input
+                    id="opensBefore"
+                    type="number"
+                    min={0}
+                    value={checkInOpensMinutesBefore}
+                    onChange={(e) => setCheckInOpensMinutesBefore(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="closesAfter">Closes (min after)</Label>
+                  <Input
+                    id="closesAfter"
+                    type="number"
+                    min={0}
+                    value={checkInClosesMinutesAfter}
+                    onChange={(e) => setCheckInClosesMinutesAfter(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="regCloseBefore">Reg closes (min before)</Label>
+                  <Input
+                    id="regCloseBefore"
+                    type="number"
+                    min={0}
+                    value={registrationClosesMinutesBeforeStart}
+                    onChange={(e) => setRegistrationClosesMinutesBeforeStart(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleSaveSelfCheckInSettings} disabled={updateEventMutation.isLoading} className="w-full">
+                {updateEventMutation.isLoading ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Event QR Code Section (Fallback) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <QrCodeIcon className="h-5 w-5" />
-                Event QR Code (Fallback)
+                Event QR Code (Self Check-in)
               </CardTitle>
               <CardDescription>
-                Display this QR code for attendees who don't have their personal QR. They can scan and enter phone number.
+                Print and display this QR at the venue. Attendees scan it and check in with their phone (and PIN if enabled).
               </CardDescription>
             </CardHeader>
             <CardContent>
