@@ -18,7 +18,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
   const router = useRouter()
   const { toast } = useToast()
   const utils = trpc.useUtils()
-  const { data: event, isLoading } = trpc.event.getById.useQuery({ id: eventId })
+  const { data: event, isLoading } = trpc.event.getCheckInSummary.useQuery({ id: eventId })
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const isMountedRef = useRef(true)
@@ -93,7 +93,7 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
         attendeeQrCode: data.attendeeQrCode,
       })
       
-      utils.event.getById.invalidate({ id: eventId })
+      utils.event.getCheckInSummary.invalidate({ id: eventId })
       
       // Hide success modal after 3 seconds and resume scanning
       setTimeout(() => {
@@ -1130,9 +1130,9 @@ export function QRScannerClient({ eventId }: { eventId: string }) {
     )
   }
 
-  const checkedInCount = event.attendees?.filter((a) => a.checkedIn).length || 0
-  const totalAttendees = event.attendees?.length || 0
-  const qrScannedCount = event.attendees?.filter((a) => a.checkInMethod === 'qr_scan').length || 0
+  const checkedInCount = event.checkedInCount || 0
+  const totalAttendees = event.totalAttendees || 0
+  const qrScannedCount = event.qrScannedCount || 0
 
     return (
     <div className="min-h-screen bg-background">

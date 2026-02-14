@@ -3,6 +3,7 @@ import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { getPlanLimits, type PlanType } from '@/lib/plan-limits'
 import { getEffectivePlan } from '@/lib/early-access'
+import { normalizePhoneMixed } from '@/lib/phone'
 
 export const contactRouter = router({
   create: protectedProcedure
@@ -42,10 +43,14 @@ export const contactRouter = router({
         })
       }
 
+      const normalized = normalizePhoneMixed(input.phone)
+
       return ctx.prisma.contact.create({
         data: {
           organizationId: ctx.organization.id,
           ...input,
+          phone: normalized.canonicalForLookup,
+          phoneNormalized: normalized.e164OrNull,
         },
       })
     }),
@@ -84,9 +89,16 @@ export const contactRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
+      const updateData: typeof input.data = { ...input.data }
+      if (input.data.phone) {
+        const normalized = normalizePhoneMixed(input.data.phone)
+        ;(updateData as any).phone = normalized.canonicalForLookup
+        ;(updateData as any).phoneNormalized = normalized.e164OrNull
+      }
+
       return ctx.prisma.contact.update({
         where: { id: input.id },
-        data: input.data,
+        data: updateData as any,
       })
     }),
 
@@ -142,10 +154,15 @@ export const contactRouter = router({
       }
 
       return ctx.prisma.contact.createMany({
-        data: input.contacts.map((c) => ({
+        data: input.contacts.map((c) => {
+          const normalized = normalizePhoneMixed(c.phone)
+          return {
           organizationId: ctx.organization!.id,
           ...c,
-        })),
+          phone: normalized.canonicalForLookup,
+          phoneNormalized: normalized.e164OrNull,
+          }
+        }),
         skipDuplicates: true,
       })
     }),

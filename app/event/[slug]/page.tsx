@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { PublicEventClient } from './public-event-client'
-import { prisma } from '@/lib/prisma'
 import { formatDate } from '@/lib/utils'
+import { getPublicEventData } from './public-event-data'
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lexnify.com'
 
@@ -10,25 +10,7 @@ export async function generateMetadata({
 }: {
   params: { slug: string }
 }): Promise<Metadata> {
-  const event = await prisma.event.findUnique({
-    where: { publicSlug: params.slug },
-    select: {
-      title: true,
-      description: true,
-      eventDate: true,
-      endDate: true,
-      startTime: true,
-      endTime: true,
-      location: true,
-      locationType: true,
-      imageUrl: true,
-      organization: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  })
+  const event = await getPublicEventData(params.slug)
 
   if (!event) {
     return {
@@ -82,25 +64,7 @@ export default async function PublicEventPage({
   params: { slug: string }
 }) {
   // Fetch event data for structured data
-  const event = await prisma.event.findUnique({
-    where: { publicSlug: params.slug },
-    select: {
-      title: true,
-      description: true,
-      eventDate: true,
-      endDate: true,
-      startTime: true,
-      endTime: true,
-      location: true,
-      locationType: true,
-      imageUrl: true,
-      organization: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  })
+  const event = await getPublicEventData(params.slug)
 
   // Structured Data (JSON-LD) for Event
   const eventStructuredData = event
@@ -143,7 +107,7 @@ export default async function PublicEventPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(eventStructuredData) }}
         />
       )}
-      <PublicEventClient slug={params.slug} />
+      <PublicEventClient slug={params.slug} initialEvent={event} />
     </>
   )
 }

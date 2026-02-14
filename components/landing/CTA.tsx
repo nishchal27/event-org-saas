@@ -91,6 +91,11 @@ export function CTA() {
                       <Link href="#features">Learn More</Link>
                     </Button>
                   </motion.div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button size="lg" variant="ghost" asChild className="text-base text-muted-foreground hover:text-foreground">
+                      <Link href="/guide">User Guide</Link>
+                    </Button>
+                  </motion.div>
                 </motion.div>
                 <motion.div
                   className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground"

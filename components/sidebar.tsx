@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X } from 'lucide-react'
+import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { OrganizationSwitcher, UserButton, useOrganization, useUser } from '@clerk/nextjs'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/contacts/groups', label: 'Groups', icon: Users },
   { href: '/pricing', label: 'Pricing', icon: CreditCard },
   { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/guide', label: 'User Guide', icon: BookOpen },
 ]
 
 export function Sidebar() {
