@@ -43,6 +43,12 @@ export function Navbar() {
           >
             FAQ
           </Link>
+          <Link
+            href="/guide"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            User Guide
+          </Link>
           <ThemeToggle />
           {isSignedIn ? (
             <Button asChild>
@@ -105,6 +111,13 @@ export function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
             >
               FAQ
+            </Link>
+            <Link
+              href="/guide"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              User Guide
             </Link>
             <div className="flex items-center justify-between pt-2">
               <span className="text-sm text-muted-foreground">Theme</span>

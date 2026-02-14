@@ -60,10 +60,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/guide"
                   className="text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Documentation
+                  User Guide
                 </Link>
               </li>
               <li>

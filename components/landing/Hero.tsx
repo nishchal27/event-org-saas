@@ -187,6 +187,16 @@ export function Hero() {
                 <Link href="#how-it-works">See How It Works</Link>
               </Button>
             </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                size="lg"
+                variant="ghost"
+                asChild
+                className="text-base font-semibold text-muted-foreground hover:text-foreground"
+              >
+                <Link href="/guide">User Guide</Link>
+              </Button>
+            </motion.div>
           </motion.div>
 
           {/* Trust Indicators */}
