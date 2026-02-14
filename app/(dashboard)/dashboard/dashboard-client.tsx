@@ -30,27 +30,11 @@ export function DashboardClient() {
   
   const { data: events, isLoading: eventsLoading } = trpc.event.getAll.useQuery(undefined, {
     staleTime: 60 * 1000,
-    enabled: userLoaded, // Only fetch when user is loaded
-    retry: (failureCount, error: any) => {
-      // Retry on UNAUTHORIZED errors (might be timing issue)
-      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
-        return true
-      }
-      return false
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    enabled: userLoaded,
   })
   const { data: usage } = trpc.subscription.getUsage.useQuery(undefined, {
     staleTime: 2 * 60 * 1000,
-    enabled: userLoaded, // Only fetch when user is loaded
-    retry: (failureCount, error: any) => {
-      // Retry on UNAUTHORIZED errors (might be timing issue)
-      if (error?.data?.code === 'UNAUTHORIZED' && failureCount < 2) {
-        return true
-      }
-      return false
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    enabled: userLoaded,
   })
   // Analytics dashboard is available at /analytics (admin-only)
   // Removed analytics call from main dashboard to avoid errors

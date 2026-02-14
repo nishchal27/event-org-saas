@@ -3,6 +3,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import dynamic from 'next/dynamic'
 import { trpc } from '@/lib/trpc-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import React from 'react'
-import { CldUploadWidget } from 'next-cloudinary'
 import { useToast } from '@/hooks/use-toast'
 import { FileText } from 'lucide-react'
 import {
@@ -31,6 +31,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+
+const CldUploadWidget = dynamic(
+  () =>
+    import('next-cloudinary').then((mod) => mod.CldUploadWidget as React.ComponentType<any>),
+  { ssr: false }
+)
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number)
@@ -96,7 +102,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
 
-export function EventFormClient() {
+export function EventFormClient({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter()
   const { toast } = useToast()
   const [showCustomFields, setShowCustomFields] = useState(false)
@@ -175,6 +181,16 @@ export function EventFormClient() {
         router.push(`/events/${data.id}`)
       }
     },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description:
+          error.data?.code === 'UNAUTHORIZED'
+            ? 'Please sign in again and try creating the event.'
+            : error.message,
+        variant: 'destructive',
+      })
+    },
   })
 
   const onSubmit = (data: EventFormData) => {
@@ -194,16 +210,8 @@ export function EventFormClient() {
     })
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Create New Event</h1>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-6">
+  const formContent = (
+    <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-6">
           {/* Template Selection */}
           {templates && templates.length > 0 && (
             <Card>
@@ -581,72 +589,89 @@ export function EventFormClient() {
             </div>
           </div>
         </form>
+  )
 
-        {/* Save as Template Dialog */}
-        <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Save as Template</DialogTitle>
-              <DialogDescription>
-                Save this event configuration as a reusable template
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="template-name">Template Name *</Label>
-                <Input
-                  id="template-name"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  placeholder="e.g., Weekly Workshop, Monthly Meetup"
-                  className="mt-1"
-                />
-              </div>
+  const formAndDialog = (
+    <>
+      {formContent}
+      {/* Save as Template Dialog */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as Template</DialogTitle>
+            <DialogDescription>
+              Save this event configuration as a reusable template
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="template-name">Template Name *</Label>
+              <Input
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g., Weekly Workshop, Monthly Meetup"
+                className="mt-1"
+              />
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSaveTemplateDialog(false)
-                  setTemplateName('')
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  const formData = watch()
-                  if (!templateName) {
-                    toast({
-                      title: 'Error',
-                      description: 'Please enter a template name',
-                      variant: 'destructive',
-                    })
-                    return
-                  }
-                  createTemplateMutation.mutate({
-                    name: templateName,
-                    title: formData.title,
-                    description: formData.description,
-                    locationType: formData.locationType,
-                    location: formData.location || null,
-                    startTime: formData.startTime || null,
-                    endTime: formData.endTime || null,
-                    additionalNotes: formData.additionalNotes || null,
-                    customField1Label: formData.customField1Label || null,
-                    customField1Value: formData.customField1Value || null,
-                    customField2Label: formData.customField2Label || null,
-                    customField2Value: formData.customField2Value || null,
-                    maxCapacity: formData.maxCapacity || null,
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSaveTemplateDialog(false)
+                setTemplateName('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const formData = watch()
+                if (!templateName) {
+                  toast({
+                    title: 'Error',
+                    description: 'Please enter a template name',
+                    variant: 'destructive',
                   })
-                }}
-                disabled={createTemplateMutation.isLoading || !templateName}
-              >
-                {createTemplateMutation.isLoading ? 'Saving...' : 'Save Template'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                  return
+                }
+                createTemplateMutation.mutate({
+                  name: templateName,
+                  title: formData.title,
+                  description: formData.description,
+                  locationType: formData.locationType,
+                  location: formData.location || null,
+                  startTime: formData.startTime || null,
+                  endTime: formData.endTime || null,
+                  additionalNotes: formData.additionalNotes || null,
+                  customField1Label: formData.customField1Label || null,
+                  customField1Value: formData.customField1Value || null,
+                  customField2Label: formData.customField2Label || null,
+                  customField2Value: formData.customField2Value || null,
+                  maxCapacity: formData.maxCapacity || null,
+                })
+              }}
+              disabled={createTemplateMutation.isLoading || !templateName}
+            >
+              {createTemplateMutation.isLoading ? 'Saving...' : 'Save Template'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+
+  if (embedded) return formAndDialog
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="border-b bg-white">
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-2xl font-bold">Create New Event</h1>
+        </div>
+      </div>
+      <div className="container mx-auto px-4 py-8">
+        {formAndDialog}
       </div>
     </div>
   )
