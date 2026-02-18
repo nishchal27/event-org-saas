@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { useUser } from '@clerk/nextjs'
+import { trackEvent } from '@/lib/analytics'
 
 export function EventsClient() {
   const router = useRouter()
@@ -53,7 +54,11 @@ export function EventsClient() {
     },
   })
   const deleteMutation = trpc.event.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      const ev = events?.find((e) => e.id === variables.id)
+      if (ev?.organizationId) {
+        trackEvent('event_deleted', { eventId: variables.id }, undefined, ev.organizationId)
+      }
       // Invalidate events list to remove deleted event
       utils.event.getAll.invalidate()
       toast({

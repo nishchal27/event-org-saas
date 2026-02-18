@@ -202,6 +202,7 @@ export const attendeeRouter = router({
         kind: attendee ? ('attendee' as const) : ('event' as const),
         event: {
           id: event.id,
+          organizationId: event.organizationId,
           title: event.title,
           location: event.location,
           timeZone: event.timeZone,

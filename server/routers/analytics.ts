@@ -1,9 +1,49 @@
 import { z } from 'zod'
-import { router, adminProcedure } from '@/lib/trpc'
+import { router, adminProcedure, protectedProcedure } from '@/lib/trpc'
 import { prisma } from '@/lib/prisma'
 import { TRPCError } from '@trpc/server'
 
+/** Dashboard-relevant event types for recent activity feed (exclude noisy/low-value) */
+const DASHBOARD_ACTIVITY_EVENTS = [
+  'event_created',
+  'event_updated',
+  'event_deleted',
+  'whatsapp_invite_sent',
+  'whatsapp_invite_failed',
+  'check_in_success',
+  'check_in_manual',
+  'self_check_in_success',
+  'registration_success',
+] as const
+
 export const analyticsRouter = router({
+  /**
+   * Get recent activity for dashboard (org members). Last N actions for the current org.
+   */
+  getRecentActivity: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(50).default(15) }))
+    .query(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+      const rows = await prisma.analyticsEvent.findMany({
+        where: {
+          organizationId: ctx.organization.id,
+          event: { in: [...DASHBOARD_ACTIVITY_EVENTS] },
+        },
+        orderBy: { timestamp: 'desc' },
+        take: input.limit,
+        select: {
+          id: true,
+          event: true,
+          properties: true,
+          timestamp: true,
+          userId: true,
+        },
+      })
+      return rows
+    }),
+
   /**
    * Get analytics summary for the organization (Admin only)
    */
