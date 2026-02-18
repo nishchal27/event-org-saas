@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { motion } from 'framer-motion'
+import { trackEvent } from '@/lib/analytics'
 
 export function EventDetailClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -113,14 +114,37 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
   }
 
   const whatsappMutation = trpc.whatsapp.sendInvite.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast({
         title: 'Success',
         description: 'WhatsApp invitations sent successfully!',
       })
+      if (event) {
+        trackEvent(
+          'whatsapp_invite_sent',
+          { eventId, count: variables.contactIds.length },
+          undefined,
+          event.organizationId
+        )
+      }
       // Invalidate event query to refetch updated attendee data
       utils.event.getById.invalidate({ id: eventId })
       setShowContactSelection(false)
+    },
+    onError: (error, variables) => {
+      if (event) {
+        trackEvent(
+          'whatsapp_invite_failed',
+          { eventId, count: variables.contactIds.length },
+          undefined,
+          event.organizationId
+        )
+      }
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      })
     },
   })
 

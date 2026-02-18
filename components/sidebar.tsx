@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { OrganizationSwitcher, UserButton, useOrganization, useUser } from '@clerk/nextjs'
+import { UserButton, useUser } from '@clerk/nextjs'
+import { OrgSwitcherFullPage } from '@/components/org-switcher-full-page'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,6 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { organization } = useOrganization()
   const { user } = useUser()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -58,19 +58,11 @@ export function Sidebar() {
         {/* Logo only shown on desktop - mobile has it in header */}
         <div className="hidden md:block border-b border-border p-4 space-y-3">
           <Logo href="/dashboard" size="sm" />
-          <OrganizationSwitcher
-            hidePersonal
-            afterSelectOrganizationUrl="/dashboard"
-            afterCreateOrganizationUrl="/dashboard"
-          />
+          <OrgSwitcherFullPage />
         </div>
         {/* Organization switcher for mobile (logo is in mobile header) */}
         <div className="md:hidden border-b border-border p-4 space-y-3">
-          <OrganizationSwitcher
-            hidePersonal
-            afterSelectOrganizationUrl="/dashboard"
-            afterCreateOrganizationUrl="/dashboard"
-          />
+          <OrgSwitcherFullPage />
         </div>
       <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
           {navItems.map((item) => {

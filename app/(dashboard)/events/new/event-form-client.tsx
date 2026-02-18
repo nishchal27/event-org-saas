@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import React from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { trackEvent } from '@/lib/analytics'
 import { FileText } from 'lucide-react'
 import {
   Dialog,
@@ -178,6 +179,7 @@ export function EventFormClient({ embedded = false }: { embedded?: boolean }) {
   const createMutation = trpc.event.create.useMutation({
     onSuccess: (data: any) => {
       if (data && 'id' in data) {
+        trackEvent('event_created', { eventId: data.id }, undefined, data.organizationId)
         router.push(`/events/${data.id}`)
       }
     },

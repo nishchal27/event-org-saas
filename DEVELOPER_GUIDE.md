@@ -17,6 +17,10 @@ Complete technical documentation for developers working on EventOrg SaaS.
 11. [Authentication & Authorization](#authentication--authorization)
 12. [Deployment](#deployment)
 13. [Troubleshooting](#troubleshooting)
+14. [Analytics & Error Tracking](#analytics--error-tracking)
+15. [PWA & Install Prompt](#pwa--install-prompt)
+16. [SEO](#seo)
+17. [Logo & Branding](#logo--branding)
 
 ---
 
@@ -416,6 +420,14 @@ Do not create a second tRPC client elsewhere; use `trpcClient` so credentials an
 - **Identifier:** Client IP from `x-forwarded-for` or `x-real-ip` (set by Vercel/reverse proxies).
 - **Serverless:** The default implementation is in-memory and does not span multiple instances. For production on Vercel or multi-instance deployments, consider replacing with **Upstash Redis** (`@upstash/ratelimit`) and calling it from the same route before `fetchRequestHandler`.
 
+### Organization and dashboard workflow
+
+- **Single source of truth for "can show dashboard content":** Server `auth().orgId` → `hasOrganization` (from `app/(dashboard)/layout.tsx`). All org-dependent tRPC and "has org" UI (e.g. dashboard main content) use this. It is passed via `DashboardOrgContext`.
+- **Fixing "We couldn't load your organization":** The server reads the active org from Clerk's session cookie (`auth().orgId`). If the **client** has an active org (e.g. sidebar shows it) but the **server** does not, the session cookie is out of sync. To fix this: (1) **Clerk Dashboard** — ensure the session token includes the active organization claim (e.g. no custom JWT template that omits it). (2) **Full-page navigation after org switch** — the sidebar uses a custom org switcher (`components/org-switcher-full-page.tsx`) that calls `setActive({ organization: id })` then `window.location.href = '/dashboard'` so the next request sends the updated cookie. Do **not** rely on client-side navigation after switching org. (3) **Create-organization** — when the user has an active org, redirect with `window.location.href = '/dashboard'` so the next load sees the cookie. (4) **Dashboard "Try again"** — when showing "We couldn't load your organization", a "Try again" button clears the sync flag and retries `setActive` + reload.
+- **Clerk client vs server:** The client (Clerk hooks) can show an org name even when the server had no `orgId`. When the client has an org but the server doesn't, the dashboard shows "Loading your organization…" (one sync attempt: short delay, then `setActive` + reload) or "We couldn't load your organization" with "Try again" and "Refresh". Only when there is no org on both client and server do we show "Create or select organization".
+- **Where setActive + full-page nav happen:** (1) `components/org-switcher-full-page.tsx` — on org selection, `setActive` then `window.location.href = '/dashboard'`. (2) `app/(dashboard)/dashboard-layout-client.tsx` — on `/create-organization` when user has memberships but no active org, `setActive` then `window.location.href = '/dashboard'`. (3) `app/(dashboard)/create-organization/[[...rest]]/page.tsx` — when `organization` is set, redirect with `window.location.href = '/dashboard'`.
+- **Dashboard definition:** The dashboard is the **org-scoped command center**: usage cards (events, contacts, WhatsApp, AI), **recent activity** (last N actions from `AnalyticsEvent`: event created/updated/deleted, WhatsApp invites, check-ins, registrations), recent events list, and quick actions. Activity is powered by `analytics.getRecentActivity` (see `server/routers/analytics.ts`). Ensure critical flows call `trackEvent()` from `lib/analytics` with **organizationId** so the feed is attributed to the current org: event create (`event-form-client`), event delete (`events-client`), WhatsApp send/fail (`event-detail-client`), check-in/self-check-in (`checkin-public-client`). Optional: "glimpses" (e.g. today's check-ins) can be added later via aggregation of `AnalyticsEvent` or usage.
+
 ### Performance: Create Event page
 
 - **SSR shell:** `app/(dashboard)/events/new/page.tsx` is a server component that renders the heading and container so the first paint has content before the client bundle runs.
@@ -712,6 +724,7 @@ All components are located in `components/ui/`:
   1. **No session** — Cookies not sent or session expired; Clerk cannot resolve the user.  
   2. **No organization** — User is signed in (`userId` present) but `orgId` is undefined (no org created or selected in Clerk). Protected procedures that require `ctx.organization` then throw UNAUTHORIZED.
 - **Sign-in → dashboard loop:** If the global handler redirects 401 to `/sign-in`, signed-in users with no org get sent to sign-in; Clerk then sends them back to dashboard; dashboard tRPC calls 401 again → loop. The app avoids this by redirecting **all** UNAUTHORIZED to `/create-organization`. If the user is not signed in, the dashboard layout (which wraps create-organization) redirects to `/sign-in`.
+- **Important:** (a) The **dashboard must not run org-dependent tRPC queries** when the server reports no org (`hasOrganization` from the layout). The dashboard uses `DashboardOrgContext` and only enables `event.getAll` and `subscription.getUsage` when `hasOrganization` is true; when false it shows an empty state and a CTA to `/create-organization`. (b) **Any redirect to dashboard when the user has orgs but no active org** must call Clerk `setActive({ organization: id })` first; after `setActive`, the app uses **full-page navigation** (`window.location.href = '/dashboard'`) so the next server request sees the updated session. The only place that performs this "has orgs but no active → setActive then redirect" is **dashboard-layout-client.tsx** (not the create-organization page, to avoid duplicate logic). (c) On the dashboard, if the server has no org but the client (Clerk) has memberships, the dashboard client attempts a one-time **session repair**: it calls `setActive(firstOrgId)` then full-page navigates so the server sees the org on reload.
 - **Fix (no session):** Use the single tRPC client from `lib/trpc-client.ts` with `credentials: 'include'` in `app/providers.tsx`.
 - **Fix (no org):** User must create or select an organization at `/create-organization`. Ensure Clerk has Organizations enabled and the user completes the create-organization flow.
 
@@ -757,21 +770,48 @@ npx prisma db push --force-reset
 - Review service-specific error logs
 - Test with service dashboards
 
-**For detailed troubleshooting guides, see:**
-- `WEBHOOK_TROUBLESHOOTING.md` (to be merged)
-- `WEBHOOK_DEEP_DEBUG.md` (to be merged)
-- `WEBHOOK_DIAGNOSTIC.md` (to be merged)
+---
+
+## Analytics & Error Tracking
+
+- **Sentry:** Optional; set `NEXT_PUBLIC_SENTRY_DSN` and `SENTRY_DSN` in `.env`. Run `npx @sentry/wizard@latest -i nextjs` for setup. Free tier: 5,000 errors/month.
+- **Google Analytics (GA4):** Optional; set `NEXT_PUBLIC_GA_MEASUREMENT_ID` (e.g. `G-XXXXXXXXXX`) for page views and app events. Omit to disable.
+- **App analytics:** Errors and events are logged via `lib/logger` and `lib/analytics`. Feature helpers: `logger.qrScan`, `logger.checkIn`, `logger.event`, `logger.whatsapp`. Track events with `trackEvent()` from `lib/analytics`. Dashboard at `/analytics` (when configured).
+- **Error boundaries:** Root layout has global boundary; use `ErrorBoundary` from `@/components/error-boundary` for component-level boundaries. All tracking is async and non-blocking.
 
 ---
 
-## Additional Resources
+## PWA & Install Prompt
 
-- **README.md** - Project overview and features
-- **CHANGELOG.md** - Version history
-- **IMPLEMENTATION_GUIDE.md** - Feature implementation details
-- **USER_GUIDE.md** - User-facing documentation
-- **docs/HIGH_LEVEL_DESIGN.md** - System context, data model, workflows, and data flow (Mermaid diagrams)
-- **docs/PRODUCT_STORY_AND_CONTENT_BUCKET.md** - Product story and content source for blogs/posts
+- **Stack:** next-pwa for service worker; `app/manifest.json` for metadata. Requires HTTPS in production.
+- **Install prompt:** `components/install-prompt.tsx` — mobile-only, detects if already installed, dismissible for 1 week. Android: browser install banner or custom prompt. iOS: Share → Add to Home Screen (no automatic prompt).
+- **Icons:** PWA needs PNGs in `public/logo/`: `icon-192.png`, `icon-512.png`, `icon-180.png` (iOS). Generate from `public/logo/icon.svg` (see Logo & Branding below). Omit to use SVG/manifest defaults.
+
+---
+
+## SEO
+
+- **Metadata:** Root `app/layout.tsx` and page-level metadata (e.g. `app/landing/page.tsx`, `app/event/[slug]/page.tsx`) with title, description, Open Graph, Twitter Card, canonical URLs. Set `NEXT_PUBLIC_APP_URL` to production domain (e.g. `https://lexnify.com`).
+- **Sitemap:** `app/sitemap.ts` — static routes; accessible at `/sitemap.xml`.
+- **Robots:** `app/robots.ts` — allows public pages, blocks `/dashboard`, `/api`, etc.; points to sitemap.
+- **Structured data:** JSON-LD in landing (SoftwareApplication, Organization, FAQPage) and event pages (Event schema). Use [Google Rich Results Test](https://search.google.com/test/rich-results) and [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) to verify.
+
+---
+
+## Logo & Branding
+
+- **Components:** `components/lexnify-icon.tsx` (SVG icon), `components/logo.tsx` (icon + "LEXNIFY" text, theme-aware). Static asset: `public/logo/icon.svg`.
+- **PWA icons:** Generate PNGs from the SVG: 192×192, 512×512, 180×180 (iOS). Use ImageMagick (`convert -background none -resize 192x192 public/logo/icon.svg public/logo/icon-192.png`), CloudConvert, or design tools. Place in `public/logo/`.
+
+---
+
+## Documentation (minimal set)
+
+- **README.md** — Front door: what the app is, quick start, scripts, links to DEVELOPER_GUIDE and design doc.
+- **DEVELOPER_GUIDE.md** — This document: full technical reference for developers.
+- **docs/HIGH_LEVEL_DESIGN.md** — System design: context, routes, data model, workflows, Mermaid diagrams.
+- **CHANGELOG.md** — Version history.
+- **User-facing help** — In-app at `/guide` (public, no auth).
 
 ---
 

@@ -336,6 +336,14 @@ sequenceDiagram
 - Organizer is always in **org context** (Clerk + tRPC `ctx.organizationId`).
 - Event has **time windows** (registration open/close, check-in open/close) and optional **self-check-in** with venue PIN; all check-in paths are idempotent where applicable.
 
+### 4.1 Organization context and dashboard
+
+- **Single source of truth for “has org”:** The server layout (`app/(dashboard)/layout.tsx`) calls `auth()` and passes `hasOrganization = !!orgId` to `DashboardLayoutClient`. This value is provided to all dashboard children via **DashboardOrgContext** (`app/(dashboard)/dashboard-org-context.tsx`). The dashboard page does not infer “has org” from Clerk client state alone.
+- **Set active org before redirect:** When the user has orgs but no active org and should go to the dashboard, the app calls Clerk **`setActive({ organization: id })`** (first membership’s org id) then performs **full-page navigation** (`window.location.href = '/dashboard'`) so the next server request sees the updated session cookie. This is implemented only in **dashboard-layout-client.tsx** (the create-organization page does not do setActive + redirect, to avoid duplicate logic). If the server has no org but the client has memberships, the dashboard page can repair the session once by calling `setActive` and reloading.
+- **Gate org-dependent queries:** The dashboard page (`dashboard-client.tsx`) enables `event.getAll` and `subscription.getUsage` only when `hasOrganization` from context is true. When `hasOrganization` is false, it does not run those queries and instead shows an empty state (“Create or select an organization to continue”) with a CTA to `/create-organization`. This avoids 401s and redirect loops when the server has no active org.
+- **No "create org" when client has org:** If the client has an active org (e.g. sidebar shows it) but the server has no org, the dashboard never shows "Create or select organization"; it shows "Loading your organization…" (one sync: setActive + reload) or "Couldn't load, refresh or use switcher above" with a Refresh button. Only when there is no org on both client and server does it show the create-org CTA. This avoids contradictory UI (org in sidebar vs create-org in main).
+- **Global 401 handling:** tRPC `UNAUTHORIZED` is handled globally (e.g. in `app/providers.tsx`) by redirecting to `/create-organization` (not `/sign-in`) so signed-in users without an org land on create-organization instead of a sign-in ↔ dashboard loop.
+
 ---
 
 ## 5. Attendee workflow (public event + check-in)
@@ -464,7 +472,7 @@ flowchart LR
 ```
 
 - **Browser** → **Middleware**: public routes pass through; protected routes require Clerk `userId` or redirect to sign-in.
-- **tRPC**: Context loads user and active organization (e.g. from header or query); **protectedProcedure** enforces auth and org; **publicProcedure** is used for event.getBySlug, attendee.register, getCheckInContext, checkInByQR, selfCheckIn.
+- **tRPC**: Context loads user and **active organization** from Clerk session (`auth().orgId`); **protectedProcedure** enforces auth and org. The dashboard layout receives `hasOrganization` from the server and exposes it via **DashboardOrgContext**; the dashboard page only runs org-dependent queries (e.g. event.getAll, subscription.getUsage) when `hasOrganization` is true. **publicProcedure** is used for event.getBySlug, attendee.register, getCheckInContext, checkInByQR, selfCheckIn.
 - **Routers** perform business logic and use **Prisma** for all DB access; external calls (Clerk, Stripe, Twilio) are used from procedures or server-side code.
 
 ---
@@ -491,18 +499,21 @@ flowchart LR
 
 ## 8. Key files reference
 
-| Area                | Path                         |
-| ------------------- | ---------------------------- |
-| Auth & routes       | `middleware.ts`              |
-| tRPC app router     | `server/routers/_app.ts`     |
-| tRPC context        | `lib/trpc.ts`                |
-| Schema              | `prisma/schema.prisma`       |
-| Event time windows  | `lib/event-schedule.ts`      |
-| Phone normalization | `lib/phone.ts`               |
-| Venue PIN           | `lib/venue-pin.ts`           |
-| Public event page   | `app/event/[slug]/...`       |
-| Public check-in     | `app/checkin/[qrCode]/...`   |
-| Staff scanner       | `app/events/[id]/scan/...`   |
-| Dashboard layout    | `app/(dashboard)/layout.tsx` |
+| Area                | Path                                              |
+| ------------------- | ------------------------------------------------- |
+| Auth & routes       | `middleware.ts`                                   |
+| tRPC app router     | `server/routers/_app.ts`                          |
+| tRPC context        | `lib/trpc.ts`                                     |
+| Schema              | `prisma/schema.prisma`                            |
+| Event time windows  | `lib/event-schedule.ts`                           |
+| Phone normalization | `lib/phone.ts`                                    |
+| Venue PIN           | `lib/venue-pin.ts`                                |
+| Public event page   | `app/event/[slug]/...`                            |
+| Public check-in     | `app/checkin/[qrCode]/...`                        |
+| Staff scanner       | `app/events/[id]/scan/...`                        |
+| Dashboard layout    | `app/(dashboard)/layout.tsx`                      |
+| Dashboard layout client | `app/(dashboard)/dashboard-layout-client.tsx` |
+| Dashboard org context | `app/(dashboard)/dashboard-org-context.tsx`    |
+| Create organization | `app/(dashboard)/create-organization/[[...rest]]/page.tsx` |
 
-This high-level design should stay in sync with the codebase; when adding new routers, public/protected routes, or entities, update this document and the diagrams accordingly.
+This high-level design should stay in sync with the codebase; when adding new routers, public/protected routes, or entities, update this document and the diagrams accordingly. For setup, APIs, and troubleshooting see **DEVELOPER_GUIDE.md**; for quick start see **README.md**.

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { Sidebar } from '@/components/sidebar'
 import { useOrganization, useOrganizationList } from '@clerk/nextjs'
+import { DashboardOrgProvider } from './dashboard-org-context'
 
 export function DashboardLayoutClient({
   children,
@@ -16,13 +17,14 @@ export function DashboardLayoutClient({
   const router = useRouter()
   const isCreateOrgPage = pathname?.startsWith('/create-organization')
   const { organization, isLoaded } = useOrganization()
-  const { userMemberships, isLoaded: isMembershipsLoaded } = useOrganizationList({
+  const { userMemberships, isLoaded: isMembershipsLoaded, setActive } = useOrganizationList({
     userMemberships: {
       infinite: true,
     },
   })
   const redirectAttempts = useRef(0)
   const maxRedirectAttempts = 3
+  const hasSetActiveRef = useRef(false)
 
   // Check if user has any organizations (more reliable than just checking current org)
   const hasAnyOrganization = 
@@ -31,51 +33,63 @@ export function DashboardLayoutClient({
     userMemberships.data.length > 0
 
   useEffect(() => {
-    // If organization is loaded and exists, but we're on create-org page, redirect to dashboard
-    if (isLoaded && organization && isCreateOrgPage) {
+    if (!isCreateOrgPage) return
+
+    // Active org already set: redirect so server auth().orgId is set on next request
+    if (isLoaded && organization) {
       router.push('/dashboard')
       return
     }
 
-    // If user has organizations via memberships list, but we're on create-org page, redirect
-    if (isMembershipsLoaded && hasAnyOrganization && isCreateOrgPage) {
-      router.push('/dashboard')
-      return
+    // User has orgs but no active org: set active org first then full-page nav so the next server request sees auth().orgId
+    if (isMembershipsLoaded && hasAnyOrganization && !organization && !hasSetActiveRef.current) {
+      const firstOrgId = userMemberships?.data?.[0]?.organization?.id
+      if (firstOrgId) {
+        hasSetActiveRef.current = true
+        setActive({ organization: firstOrgId })
+          .then(() => {
+            window.location.href = '/dashboard'
+          })
+          .catch(() => {
+            hasSetActiveRef.current = false
+            window.location.href = '/dashboard'
+          })
+      } else {
+        window.location.href = '/dashboard'
+      }
     }
+  }, [isCreateOrgPage, isLoaded, organization, isMembershipsLoaded, hasAnyOrganization, userMemberships?.data, setActive])
 
-    // If user has no organization and is NOT on create-organization page, redirect
-    // But only if we've confirmed they truly don't have one (after both checks are loaded)
-    // Don't redirect if we're on the dashboard page itself (let it render first)
+  // If user has no organization and is NOT on create-organization page, redirect to create-organization
+  useEffect(() => {
     const isDashboardPage = pathname === '/dashboard'
     if (
-      isLoaded && 
-      isMembershipsLoaded && 
-      !organization && 
-      !hasAnyOrganization && 
-      !isCreateOrgPage && 
+      isLoaded &&
+      isMembershipsLoaded &&
+      !organization &&
+      !hasAnyOrganization &&
+      !isCreateOrgPage &&
       !hasOrganization &&
-      !isDashboardPage && // Don't redirect if already on dashboard
+      !isDashboardPage &&
       redirectAttempts.current < maxRedirectAttempts
     ) {
-      // Give a small delay to allow webhook processing after org creation
       const timeout = setTimeout(() => {
         if (redirectAttempts.current < maxRedirectAttempts) {
           redirectAttempts.current++
           router.push('/create-organization')
         }
-      }, 2000) // Increased delay to allow SSO callback to complete
-      
+      }, 2000)
       return () => clearTimeout(timeout)
     }
   }, [
-    hasOrganization, 
-    isCreateOrgPage, 
-    router, 
-    organization, 
-    isLoaded, 
-    isMembershipsLoaded, 
+    hasOrganization,
+    isCreateOrgPage,
+    router,
+    organization,
+    isLoaded,
+    isMembershipsLoaded,
     hasAnyOrganization,
-    pathname
+    pathname,
   ])
 
   // For create-organization page, don't show sidebar
@@ -116,9 +130,11 @@ export function DashboardLayoutClient({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1">{children}</main>
-    </div>
+    <DashboardOrgProvider value={{ hasOrganization }}>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1">{children}</main>
+      </div>
+    </DashboardOrgProvider>
   )
 }

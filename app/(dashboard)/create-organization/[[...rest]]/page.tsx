@@ -2,10 +2,8 @@
 
 import { CreateOrganization, OrganizationSwitcher, useOrganizationList, useOrganization } from '@clerk/nextjs'
 import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function CreateOrganizationPage() {
-  const router = useRouter()
   const hasRedirected = useRef(false)
   const { userMemberships, isLoaded } = useOrganizationList({
     userMemberships: {
@@ -14,32 +12,12 @@ export default function CreateOrganizationPage() {
   })
   const { organization, isLoaded: isOrgLoaded } = useOrganization()
 
+  // When active org is set, full-page redirect so server receives updated session cookie (auth().orgId)
   useEffect(() => {
-    // If user already has organizations and is loaded, redirect to dashboard
-    // Give a small delay to allow webhook processing
-    if (
-      isLoaded && 
-      isOrgLoaded &&
-      userMemberships && 
-      userMemberships.data && 
-      userMemberships.data.length > 0 && 
-      !hasRedirected.current
-    ) {
-      hasRedirected.current = true
-      // Small delay to ensure webhook has processed
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 500)
-    }
-    
-    // Also check if organization is set (even if memberships list hasn't updated)
-    if (isOrgLoaded && organization && !hasRedirected.current) {
-      hasRedirected.current = true
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 500)
-    }
-  }, [isLoaded, isOrgLoaded, userMemberships, organization, router])
+    if (!isLoaded || !isOrgLoaded || hasRedirected.current || !organization) return
+    hasRedirected.current = true
+    window.location.href = '/dashboard'
+  }, [isLoaded, isOrgLoaded, organization])
 
   // Show loading while checking organization status
   if (!isLoaded || !isOrgLoaded) {
@@ -87,6 +65,7 @@ export default function CreateOrganizationPage() {
             afterCreateOrganizationUrl="/dashboard"
           />
         </div>
+        {/* After create, the effect above does full-page redirect so server sees org in session */}
         <CreateOrganization afterCreateOrganizationUrl="/dashboard" />
       </div>
     </div>

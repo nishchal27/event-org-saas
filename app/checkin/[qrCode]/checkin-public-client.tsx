@@ -42,11 +42,12 @@ export function CheckInPublicClient({ qrCode }: { qrCode: string }) {
       setPhone('')
       setPin('')
 
-      trackEvent('check_in_success', {
-        eventId: context?.event?.id,
-        kind: context?.kind,
-        method: 'checkInByQR',
-      })
+      trackEvent(
+        'check_in_success',
+        { eventId: context?.event?.id, kind: context?.kind, method: 'checkInByQR' },
+        undefined,
+        context?.event?.organizationId
+      )
     },
     onError: (error) => {
       setCheckInResult('error')
@@ -58,12 +59,12 @@ export function CheckInPublicClient({ qrCode }: { qrCode: string }) {
         variant: 'destructive',
       })
 
-      trackEvent('check_in_error', {
-        eventId: context?.event?.id,
-        kind: context?.kind,
-        method: 'checkInByQR',
-        errorMessage: error.message,
-      })
+      trackEvent(
+        'check_in_error',
+        { eventId: context?.event?.id, kind: context?.kind, method: 'checkInByQR', errorMessage: error.message },
+        undefined,
+        context?.event?.organizationId
+      )
     },
   })
 
@@ -83,11 +84,12 @@ export function CheckInPublicClient({ qrCode }: { qrCode: string }) {
       setPhone('')
       setPin('')
 
-      trackEvent('self_check_in_success', {
-        eventId: context?.event?.id,
-        kind: context?.kind,
-        method: 'selfCheckIn',
-      })
+      trackEvent(
+        'self_check_in_success',
+        { eventId: context?.event?.id, kind: context?.kind, method: 'selfCheckIn' },
+        undefined,
+        context?.event?.organizationId
+      )
     },
     onError: (error) => {
       setCheckInResult('error')
@@ -99,12 +101,12 @@ export function CheckInPublicClient({ qrCode }: { qrCode: string }) {
         variant: 'destructive',
       })
 
-      trackEvent('self_check_in_error', {
-        eventId: context?.event?.id,
-        kind: context?.kind,
-        method: 'selfCheckIn',
-        errorMessage: error.message,
-      })
+      trackEvent(
+        'self_check_in_error',
+        { eventId: context?.event?.id, kind: context?.kind, method: 'selfCheckIn', errorMessage: error.message },
+        undefined,
+        context?.event?.organizationId
+      )
     },
   })
 
