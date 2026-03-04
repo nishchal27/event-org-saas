@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { trackEvent } from '@/lib/analytics'
 
 export function EventDetailClient({ eventId }: { eventId: string }) {
@@ -333,9 +334,11 @@ export function EventDetailClient({ eventId }: { eventId: string }) {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {event.imageUrl && (
-                      <img
+                      <Image
                         src={event.imageUrl}
                         alt={event.title}
+                        width={1024}
+                        height={512}
                         className="h-48 md:h-64 w-full rounded-lg object-cover"
                       />
                     )}

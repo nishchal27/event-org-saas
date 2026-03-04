@@ -7,6 +7,7 @@ import { Download, Share2, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { motion } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
+import Image from 'next/image'
 
 interface AttendeeQRDisplayProps {
   attendeeQrCode: string
@@ -157,11 +158,12 @@ export function AttendeeQRDisplay({ attendeeQrCode, attendeeName, eventTitle }: 
             className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border-2 border-dashed border-primary/30"
           >
             <div className="p-4 bg-white rounded-lg shadow-lg">
-              <img
+              <Image
                 src={qrDataUrl}
                 alt="Your Check-in QR Code"
+                width={320}
+                height={320}
                 className="w-64 h-64 sm:w-80 sm:h-80 aspect-square object-contain"
-                style={{ aspectRatio: '1 / 1' }}
               />
             </div>
             <p className="mt-4 text-sm font-medium text-foreground">

@@ -69,6 +69,15 @@ export function DashboardClient() {
     { staleTime: 60 * 1000, enabled: orgQueriesEnabled }
   )
 
+  type RecentActivityItem = {
+    id: string
+    event: string
+    properties: unknown | null
+    timestamp: Date | string
+  }
+
+  const recentActivitySafe: RecentActivityItem[] = (recentActivity ?? []) as RecentActivityItem[]
+
   const recentEvents = events?.slice(0, 5) || []
 
   return (
@@ -144,16 +153,16 @@ export function DashboardClient() {
               Latest actions across your organization
             </CardDescription>
           </CardHeader>
-          <CardContent>
+            <CardContent>
             {activityLoading ? (
               <div className="py-6 text-center text-muted-foreground text-sm">Loading activity...</div>
-            ) : recentActivity.length === 0 ? (
+              ) : recentActivitySafe.length === 0 ? (
               <div className="py-6 text-center text-muted-foreground text-sm">
                 Activity will appear here as you create events, send invites, and check in attendees.
               </div>
             ) : (
               <ul className="space-y-2">
-                {recentActivity.map((item) => (
+                {recentActivitySafe.map((item) => (
                   <li
                     key={item.id}
                     className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm"

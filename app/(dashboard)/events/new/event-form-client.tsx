@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import React from 'react'
+import Image from 'next/image'
 import { useToast } from '@/hooks/use-toast'
 import { trackEvent } from '@/lib/analytics'
 import { FileText } from 'lucide-react'
@@ -310,7 +311,7 @@ export function EventFormClient({ embedded = false }: { embedded?: boolean }) {
                     showPoweredBy: false,
                   }}
                 >
-                  {({ open }) => {
+                  {({ open }: { open: () => void }) => {
                     return (
                       <Button type="button" variant="outline" onClick={() => open()}>
                         {imageUrl ? 'Change Image' : 'Upload Image'}
@@ -320,7 +321,13 @@ export function EventFormClient({ embedded = false }: { embedded?: boolean }) {
                 </CldUploadWidget>
                 {imageUrl && (
                   <div className="mt-2">
-                    <img src={imageUrl} alt="Event preview" className="h-32 w-auto rounded" />
+                    <Image
+                      src={imageUrl}
+                      alt="Event preview"
+                      width={256}
+                      height={128}
+                      className="h-32 w-auto rounded object-cover"
+                    />
                     <Button
                       type="button"
                       variant="ghost"

@@ -11,6 +11,7 @@ import { CldUploadWidget } from 'next-cloudinary'
 import { Loader2, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
+import Image from 'next/image'
 
 export function SettingsClient() {
   const { toast } = useToast()
@@ -151,9 +152,11 @@ export function SettingsClient() {
                 <div className="mt-3 space-y-3">
                   {logo && (
                     <div className="flex items-center gap-4">
-                      <img
+                      <Image
                         src={logo}
                         alt="Organization logo"
+                        width={80}
+                        height={80}
                         className="h-20 w-20 rounded-lg object-cover border border-border"
                       />
                       <Button
