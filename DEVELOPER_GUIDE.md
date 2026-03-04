@@ -420,13 +420,14 @@ Do not create a second tRPC client elsewhere; use `trpcClient` so credentials an
 - **Identifier:** Client IP from `x-forwarded-for` or `x-real-ip` (set by Vercel/reverse proxies).
 - **Serverless:** The default implementation is in-memory and does not span multiple instances. For production on Vercel or multi-instance deployments, consider replacing with **Upstash Redis** (`@upstash/ratelimit`) and calling it from the same route before `fetchRequestHandler`.
 
-### Organization and dashboard workflow
+### Organization and dashboard workflow (single-org)
 
-- **Single source of truth for "can show dashboard content":** Server `auth().orgId` → `hasOrganization` (from `app/(dashboard)/layout.tsx`). All org-dependent tRPC and "has org" UI (e.g. dashboard main content) use this. It is passed via `DashboardOrgContext`.
-- **Fixing "We couldn't load your organization":** The server reads the active org from Clerk's session cookie (`auth().orgId`). If the **client** has an active org (e.g. sidebar shows it) but the **server** does not, the session cookie is out of sync. To fix this: (1) **Clerk Dashboard** — ensure the session token includes the active organization claim (e.g. no custom JWT template that omits it). (2) **Full-page navigation after org switch** — the sidebar uses a custom org switcher (`components/org-switcher-full-page.tsx`) that calls `setActive({ organization: id })` then `window.location.href = '/dashboard'` so the next request sends the updated cookie. Do **not** rely on client-side navigation after switching org. (3) **Create-organization** — when the user has an active org, redirect with `window.location.href = '/dashboard'` so the next load sees the cookie. (4) **Dashboard "Try again"** — when showing "We couldn't load your organization", a "Try again" button clears the sync flag and retries `setActive` + reload.
-- **Clerk client vs server:** The client (Clerk hooks) can show an org name even when the server had no `orgId`. When the client has an org but the server doesn't, the dashboard shows "Loading your organization…" (one sync attempt: short delay, then `setActive` + reload) or "We couldn't load your organization" with "Try again" and "Refresh". Only when there is no org on both client and server do we show "Create or select organization".
-- **Where setActive + full-page nav happen:** (1) `components/org-switcher-full-page.tsx` — on org selection, `setActive` then `window.location.href = '/dashboard'`. (2) `app/(dashboard)/dashboard-layout-client.tsx` — on `/create-organization` when user has memberships but no active org, `setActive` then `window.location.href = '/dashboard'`. (3) `app/(dashboard)/create-organization/[[...rest]]/page.tsx` — when `organization` is set, redirect with `window.location.href = '/dashboard'`.
-- **Dashboard definition:** The dashboard is the **org-scoped command center**: usage cards (events, contacts, WhatsApp, AI), **recent activity** (last N actions from `AnalyticsEvent`: event created/updated/deleted, WhatsApp invites, check-ins, registrations), recent events list, and quick actions. Activity is powered by `analytics.getRecentActivity` (see `server/routers/analytics.ts`). Ensure critical flows call `trackEvent()` from `lib/analytics` with **organizationId** so the feed is attributed to the current org: event create (`event-form-client`), event delete (`events-client`), WhatsApp send/fail (`event-detail-client`), check-in/self-check-in (`checkin-public-client`). Optional: "glimpses" (e.g. today's check-ins) can be added later via aggregation of `AnalyticsEvent` or usage.
+- **One workspace per user:** The app is single-organization. Every signed-in user has exactly one Organization in the DB, created on first access. Clerk is used only for user auth (`userId`); **Clerk Organizations are not used** (no `orgId` in session, no org switcher).
+- **Single source of truth:** Organization is always resolved from the DB via the shared helper `getOrCreateUserAndOrg` in `lib/get-user-org.ts`. The dashboard layout and tRPC `protectedProcedure` both use this helper: User by `clerkId` → single Membership → Organization. If the user has no membership, the helper creates one Organization (default name "My Events", unique slug), one Membership (admin), Subscription (free), and Usage row.
+- **Layout:** `app/(dashboard)/layout.tsx` calls `getOrCreateUserAndOrg(prisma, userId, clerkUser)` and passes `currentOrg` (id + name) to `DashboardLayoutClient`. No `hasOrganization` or session-org sync logic.
+- **Dashboard and sidebar:** The sidebar shows the workspace name (from `useDashboardOrg().currentOrg`) with a link to Settings to rename. There is no org switcher. The `/create-organization` route redirects to `/dashboard`; workspace creation happens automatically on first dashboard load.
+- **Stripe:** Checkout and webhook use the **DB organization id** (from the user’s single org), not Clerk org id. See `app/api/stripe/checkout/route.ts` and `app/api/stripe/webhook/route.ts`.
+- **Dashboard definition:** The dashboard is the **org-scoped command center**: usage cards (events, contacts, WhatsApp, AI), **recent activity** (last N actions from `AnalyticsEvent`), recent events list, and quick actions. Activity is powered by `analytics.getRecentActivity`. Ensure critical flows call `trackEvent()` from `lib/analytics` with **organizationId**: event create, event delete, WhatsApp send/fail, check-in/self-check-in.
 
 ### Performance: Create Event page
 
@@ -648,14 +649,13 @@ All components are located in `components/ui/`:
 - Public routes: `/`, `/event/*`, `/checkin/*`, `/api/trpc/*`, `/api/stripe/webhook`
 
 **tRPC Context:** `lib/trpc.ts`
-- Gets auth from Clerk
-- Protected procedures require authentication
-- Organization lookup/creation
+- Gets auth from Clerk (userId only; no orgId)
+- Protected procedures use `getOrCreateUserAndOrg` for User + single Organization
 
 **Global auth error handling:** `lib/trpc-auth-error.ts` + `app/providers.tsx`
 - QueryCache/MutationCache `onError` call the global handler for tRPC `UNAUTHORIZED`/`FORBIDDEN`
-- Handler shows a toast and redirects to `/sign-in` on 401; toast only on 403
-- Ensures users see clear feedback when the session is missing or access is denied
+- Handler shows a toast on 401/403 and may redirect non-dashboard pages to `/dashboard`.
+- Ensures users see clear feedback when the session is missing or access is denied.
 
 **Protected Routes:**
 - `/dashboard/*`
@@ -720,13 +720,8 @@ All components are located in `components/ui/`:
 
 ### 401 on tRPC (e.g. event.create, event.getAll)
 
-- **Two cases:**  
-  1. **No session** — Cookies not sent or session expired; Clerk cannot resolve the user.  
-  2. **No organization** — User is signed in (`userId` present) but `orgId` is undefined (no org created or selected in Clerk). Protected procedures that require `ctx.organization` then throw UNAUTHORIZED.
-- **Sign-in → dashboard loop:** If the global handler redirects 401 to `/sign-in`, signed-in users with no org get sent to sign-in; Clerk then sends them back to dashboard; dashboard tRPC calls 401 again → loop. The app avoids this by redirecting **all** UNAUTHORIZED to `/create-organization`. If the user is not signed in, the dashboard layout (which wraps create-organization) redirects to `/sign-in`.
-- **Important:** (a) The **dashboard must not run org-dependent tRPC queries** when the server reports no org (`hasOrganization` from the layout). The dashboard uses `DashboardOrgContext` and only enables `event.getAll` and `subscription.getUsage` when `hasOrganization` is true; when false it shows an empty state and a CTA to `/create-organization`. (b) **Any redirect to dashboard when the user has orgs but no active org** must call Clerk `setActive({ organization: id })` first; after `setActive`, the app uses **full-page navigation** (`window.location.href = '/dashboard'`) so the next server request sees the updated session. The only place that performs this "has orgs but no active → setActive then redirect" is **dashboard-layout-client.tsx** (not the create-organization page, to avoid duplicate logic). (c) On the dashboard, if the server has no org but the client (Clerk) has memberships, the dashboard client attempts a one-time **session repair**: it calls `setActive(firstOrgId)` then full-page navigates so the server sees the org on reload.
-- **Fix (no session):** Use the single tRPC client from `lib/trpc-client.ts` with `credentials: 'include'` in `app/providers.tsx`.
-- **Fix (no org):** User must create or select an organization at `/create-organization`. Ensure Clerk has Organizations enabled and the user completes the create-organization flow.
+- **Cause:** No session — cookies not sent or session expired; Clerk cannot resolve the user. With single-org, every signed-in user gets an organization via `getOrCreateUserAndOrg`, so 401 in protected procedures typically means the user is not signed in.
+- **Fix:** Ensure the tRPC client sends credentials (`credentials: 'include'`). User should sign in again or refresh. The global handler shows a toast and may redirect to `/dashboard`.
 
 ### 429 Too Many Requests on public procedures
 
@@ -737,11 +732,17 @@ All components are located in `components/ui/`:
 ### Prepared statement "s3" / "s6" / "s7" does not exist (Prisma)
 
 - **Cause:** Your database connection goes through a **connection pooler** (e.g. PgBouncer, Supabase pooler) in **transaction** mode. Prisma uses prepared statements (s1, s2, s3, …); with transaction pooling, each request can hit a different backend connection, so the prepared statement created on one connection does not exist on another — hence PostgreSQL error `26000` and "prepared statement \"sN\" does not exist". This can surface as 500s on `template.getAll`, `event.getAll`, `event.create`, or any procedure that runs Prisma queries.
-- **Fix:** Add `?pgbouncer=true` to your **pooled** `DATABASE_URL` in `.env` so Prisma disables prepared statements for that connection:
+- **Fix (recommended):** Use the correct pooler/direct URLs:
+  - `DATABASE_URL`: pooled URL (Supabase pooler / PgBouncer) with `?pgbouncer=true` **when required by your pooler version/mode**
+  - `DATABASE_DIRECT_URL`: direct DB URL (no pooler) for Prisma CLI/migrations
+  Then restart the dev server.
+
+  For older poolers / transaction pooling, add `?pgbouncer=true` to your pooled `DATABASE_URL` so Prisma disables prepared statements for that connection:
   ```env
   DATABASE_URL="postgresql://user:password@host:5432/dbname?pgbouncer=true"
   ```
   If you already have query params, append with `&`: `...?existing=param&pgbouncer=true`.
+- **If it still happens:** Some Supabase/Supavisor setups can still surface this transiently under load. The app includes a one-time retry at the Prisma layer (`lib/prisma.ts`) for this specific error to reduce user-visible 500s while you correct the connection strings/pooler mode.
 - **Migrations:** Use a direct URL (no pooler, no `pgbouncer=true`) for migrations, e.g. `DATABASE_DIRECT_URL` in `prisma/schema.prisma`. The schema already supports `directUrl` for this.
 
 ### Database Issues

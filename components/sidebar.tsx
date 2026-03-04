@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X, BookOpen } from 'lucide-react'
+import { Calendar, Users, Settings, Home, CreditCard, BarChart3, Menu, X, BookOpen, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { UserButton, useUser } from '@clerk/nextjs'
-import { OrgSwitcherFullPage } from '@/components/org-switcher-full-page'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { useDashboardOrg } from '@/app/(dashboard)/dashboard-org-context'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
@@ -25,6 +25,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { user } = useUser()
+  const { currentOrg } = useDashboardOrg()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Check if user is admin by email
@@ -55,14 +56,25 @@ export function Sidebar() {
 
   const sidebarContent = (
       <div className="flex h-full flex-col">
-        {/* Logo only shown on desktop - mobile has it in header */}
+        {/* Logo and workspace name */}
         <div className="hidden md:block border-b border-border p-4 space-y-3">
           <Logo href="/dashboard" size="sm" />
-          <OrgSwitcherFullPage />
+          <Link
+            href="/settings"
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{currentOrg?.name ?? 'Workspace'}</span>
+          </Link>
         </div>
-        {/* Organization switcher for mobile (logo is in mobile header) */}
         <div className="md:hidden border-b border-border p-4 space-y-3">
-          <OrgSwitcherFullPage />
+          <Link
+            href="/settings"
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{currentOrg?.name ?? 'Workspace'}</span>
+          </Link>
         </div>
       <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
           {navItems.map((item) => {

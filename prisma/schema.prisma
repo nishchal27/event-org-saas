@@ -130,12 +130,13 @@ model Membership {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
+  @@index([userId])
   @@map("memberships")
 }
 
 model Organization {
   id               String            @id @default(cuid())
-  clerkOrgId       String            @unique
+  clerkOrgId       String?           @unique
   name             String
   slug             String            @unique
   logo             String?

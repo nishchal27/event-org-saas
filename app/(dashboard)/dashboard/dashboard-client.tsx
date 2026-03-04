@@ -5,15 +5,12 @@ import { useSearchParams } from 'next/navigation'
 import { trpc } from '@/lib/trpc-client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Calendar, Users, TrendingUp, Building2, RefreshCw, Activity } from 'lucide-react'
+import { Plus, Calendar, Users, TrendingUp, Activity } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatRelativeTime } from '@/lib/utils'
-import { useUser, useOrganization, useOrganizationList } from '@clerk/nextjs'
+import { useUser } from '@clerk/nextjs'
 import { useToast } from '@/hooks/use-toast'
 import { useDashboardOrg } from '../dashboard-org-context'
-
-const REPAIR_STORAGE_KEY = 'dashboard-org-repair-attempted'
-const SYNC_STORAGE_KEY = 'dashboard-org-sync-attempted'
 
 function getActivityLabel(event: string, properties: Record<string, unknown>): string {
   const count = typeof properties?.count === 'number' ? properties.count : null
@@ -43,15 +40,8 @@ function getActivityLabel(event: string, properties: Record<string, unknown>): s
 export function DashboardClient() {
   const { isLoaded: userLoaded } = useUser()
   const { hasOrganization } = useDashboardOrg()
-  const { organization } = useOrganization()
-  const { userMemberships, isLoaded: isMembershipsLoaded, setActive } = useOrganizationList({
-    userMemberships: { infinite: true },
-  })
   const searchParams = useSearchParams()
   const { toast } = useToast()
-
-  const hasAnyOrganization =
-    isMembershipsLoaded && userMemberships?.data && userMemberships.data.length > 0
 
   useEffect(() => {
     if (searchParams.get('success') === 'early_access') {
@@ -64,64 +54,6 @@ export function DashboardClient() {
       window.history.replaceState({}, '', url.pathname + (url.search || ''))
     }
   }, [searchParams, toast])
-
-  // Clear repair/sync flags when user has org so a future visit can attempt again
-  useEffect(() => {
-    if (hasOrganization && typeof window !== 'undefined') {
-      sessionStorage.removeItem(REPAIR_STORAGE_KEY)
-      sessionStorage.removeItem(SYNC_STORAGE_KEY)
-    }
-  }, [hasOrganization])
-
-  // When client has active org but server doesn't: sync once (setActive + reload) so server sees the session.
-  // Short delay gives Clerk time to persist the session after setActive before we reload.
-  useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      !userLoaded ||
-      hasOrganization ||
-      !organization?.id ||
-      sessionStorage.getItem(SYNC_STORAGE_KEY)
-    )
-      return
-    const timeout = setTimeout(() => {
-      sessionStorage.setItem(SYNC_STORAGE_KEY, '1')
-      setActive({ organization: organization.id }).then(
-        () => {
-          window.location.reload()
-        },
-        () => {
-          sessionStorage.removeItem(SYNC_STORAGE_KEY)
-        }
-      )
-    }, 400)
-    return () => clearTimeout(timeout)
-  }, [userLoaded, hasOrganization, organization?.id, setActive])
-
-  // Repair session when server has no org but client has memberships (e.g. session cookie lag).
-  // Only attempt once per browser session to avoid infinite reload loop (ref resets on full page load).
-  useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      !userLoaded ||
-      !isMembershipsLoaded ||
-      hasOrganization ||
-      !hasAnyOrganization ||
-      sessionStorage.getItem(REPAIR_STORAGE_KEY)
-    )
-      return
-    const firstOrgId = userMemberships?.data?.[0]?.organization?.id
-    if (!firstOrgId) return
-    sessionStorage.setItem(REPAIR_STORAGE_KEY, '1')
-    setActive({ organization: firstOrgId }).then(
-      () => {
-        window.location.href = '/dashboard'
-      },
-      () => {
-        sessionStorage.removeItem(REPAIR_STORAGE_KEY)
-      }
-    )
-  }, [userLoaded, isMembershipsLoaded, hasOrganization, hasAnyOrganization, userMemberships?.data, setActive])
 
   const orgQueriesEnabled = userLoaded && hasOrganization
   const { data: events, isLoading: eventsLoading } = trpc.event.getAll.useQuery(undefined, {
@@ -138,84 +70,6 @@ export function DashboardClient() {
   )
 
   const recentEvents = events?.slice(0, 5) || []
-
-  if (userLoaded && !hasOrganization) {
-    // Client has active org (e.g. sidebar shows it) but server doesn't: never show "create org", show sync or refresh
-    if (organization) {
-      const syncAttempted = typeof window !== 'undefined' && sessionStorage.getItem(SYNC_STORAGE_KEY)
-      return (
-        <div className="min-h-screen bg-background">
-          <div className="border-b border-border bg-card">
-            <div className="container mx-auto px-4 py-4">
-              <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
-            </div>
-          </div>
-          <div className="container mx-auto px-4 py-12">
-            <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 text-center">
-              {syncAttempted ? (
-                <>
-                  <RefreshCw className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h2 className="mt-4 text-lg font-semibold text-foreground">We couldn&apos;t load your organization</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Please try again, refresh the page, or use the organization switcher above.
-                  </p>
-                  <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button
-                      onClick={() => {
-                        if (typeof window !== 'undefined') sessionStorage.removeItem(SYNC_STORAGE_KEY)
-                        setActive({ organization: organization.id }).then(
-                          () => window.location.reload(),
-                          () => {}
-                        )
-                      }}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Try again
-                    </Button>
-                    <Button variant="outline" onClick={() => window.location.reload()}>
-                      Refresh
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-                  <h2 className="mt-4 text-lg font-semibold text-foreground">Loading your organization…</h2>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )
-    }
-    // No org anywhere: show create/select CTA
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Welcome back!</p>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-12">
-          <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 text-center">
-            <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h2 className="mt-4 text-lg font-semibold text-foreground">Create or select an organization to continue</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              You need an organization to manage events and view usage.
-            </p>
-            <Link href="/create-organization" className="mt-6 inline-block">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create or select organization
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-background">

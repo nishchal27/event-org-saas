@@ -1,7 +1,6 @@
 import { router, protectedProcedure } from '@/lib/trpc'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-import { clerkClient } from '@clerk/nextjs/server'
 
 const createOrganizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(100),
@@ -13,40 +12,26 @@ const createOrganizationSchema = z.object({
 })
 
 export const organizationRouter = router({
-  // Get current user's organizations
   getMyOrganizations: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' })
+    if (!ctx.organization || !ctx.membership) {
+      return []
     }
-
-    const memberships = await ctx.prisma.membership.findMany({
-      where: { userId: ctx.user.id },
-      include: {
-        organization: {
-          include: {
-            subscription: true,
-          },
-        },
+    return [
+      {
+        id: ctx.organization.id,
+        clerkOrgId: ctx.organization.clerkOrgId,
+        name: ctx.organization.name,
+        slug: ctx.organization.slug,
+        role: ctx.membership.role,
+        subscription: null as { id: string; plan: string; status: string } | null,
       },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    return memberships.map((m) => ({
-      id: m.organization.id,
-      clerkOrgId: m.organization.clerkOrgId,
-      name: m.organization.name,
-      slug: m.organization.slug,
-      role: m.role,
-      subscription: m.organization.subscription,
-    }))
+    ]
   }),
 
-  // Get current active organization
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.organization || !ctx.membership) {
       return null
     }
-
     return {
       id: ctx.organization.id,
       clerkOrgId: ctx.organization.clerkOrgId,
@@ -56,11 +41,10 @@ export const organizationRouter = router({
       accentColor: ctx.organization.accentColor,
       backgroundColor: ctx.organization.backgroundColor,
       fontStyle: ctx.organization.fontStyle,
-      role: ctx.membership.role, // Include user's role in organization
+      role: ctx.membership.role,
     }
   }),
 
-  // Create new organization
   create: protectedProcedure
     .input(createOrganizationSchema)
     .mutation(async ({ ctx, input }) => {
@@ -68,113 +52,111 @@ export const organizationRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
-      // Check if slug is already taken
-      const existingOrg = await ctx.prisma.organization.findUnique({
-        where: { slug: input.slug },
-      })
+      if (ctx.organization && ctx.membership) {
+        return {
+          id: ctx.organization.id,
+          clerkOrgId: ctx.organization.clerkOrgId,
+          name: ctx.organization.name,
+          slug: ctx.organization.slug,
+        }
+      }
 
-      if (existingOrg) {
+      const slug = input.slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '')
+
+      const existingBySlug = await ctx.prisma.organization.findUnique({
+        where: { slug },
+      })
+      if (existingBySlug) {
         throw new TRPCError({
           code: 'CONFLICT',
           message: 'An organization with this slug already exists',
         })
       }
 
-      try {
-        const slug = input.slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '')
-
-        const clerkOrg = await clerkClient.organizations.createOrganization({
+      const organization = await ctx.prisma.organization.create({
+        data: {
+          clerkOrgId: null,
           name: input.name,
           slug,
-          createdBy: ctx.user.clerkId,
-        })
+        },
+      })
 
-        const organization = await ctx.prisma.organization.upsert({
-          where: { clerkOrgId: clerkOrg.id },
-          update: {
-            name: clerkOrg.name,
-            slug: clerkOrg.slug || slug,
-            logo: clerkOrg.imageUrl || null,
-          },
-          create: {
-            clerkOrgId: clerkOrg.id,
-            name: clerkOrg.name,
-            slug: clerkOrg.slug || slug,
-            logo: clerkOrg.imageUrl || null,
-          },
-        })
+      await ctx.prisma.membership.create({
+        data: {
+          userId: ctx.user.id,
+          organizationId: organization.id,
+          role: 'admin',
+        },
+      })
 
-        await ctx.prisma.membership.upsert({
-          where: {
-            userId_organizationId: {
-              userId: ctx.user.id,
-              organizationId: organization.id,
-            },
-          },
-          update: { role: 'admin' },
-          create: {
-            userId: ctx.user.id,
-            organizationId: organization.id,
-            role: 'admin',
-          },
-        })
+      await ctx.prisma.subscription.upsert({
+        where: { organizationId: organization.id },
+        update: {},
+        create: {
+          organizationId: organization.id,
+          plan: 'free',
+          status: 'active',
+        },
+      })
 
-        await ctx.prisma.subscription.upsert({
-          where: { organizationId: organization.id },
-          update: {},
-          create: {
-            organizationId: organization.id,
-            plan: 'free',
-            status: 'active',
-          },
-        })
-
-        const now = new Date()
-        await ctx.prisma.usage.upsert({
-          where: {
-            organizationId_month_year: {
-              organizationId: organization.id,
-              month: now.getMonth() + 1,
-              year: now.getFullYear(),
-            },
-          },
-          update: {},
-          create: {
+      const now = new Date()
+      await ctx.prisma.usage.upsert({
+        where: {
+          organizationId_month_year: {
             organizationId: organization.id,
             month: now.getMonth() + 1,
             year: now.getFullYear(),
           },
-        })
+        },
+        update: {},
+        create: {
+          organizationId: organization.id,
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+        },
+      })
 
-        return {
-          id: organization.id,
-          clerkOrgId: organization.clerkOrgId,
-          name: organization.name,
-          slug: organization.slug,
-        }
-      } catch (error: any) {
-        console.error('Error creating organization:', error)
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error.message || 'Failed to create organization',
-        })
+      return {
+        id: organization.id,
+        clerkOrgId: organization.clerkOrgId,
+        name: organization.name,
+        slug: organization.slug,
       }
     }),
 
-  // Check if user has any organizations
   hasOrganization: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user) {
-      return false
-    }
-
-    const count = await ctx.prisma.membership.count({
-      where: { userId: ctx.user.id },
-    })
-
-    return count > 0
+    return !!ctx.organization
   }),
 
-  // Update organization customization settings
+  update: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100).optional(),
+        slug: z
+          .string()
+          .min(3)
+          .max(50)
+          .regex(/^[a-z0-9-]+$/)
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.organization) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' })
+      }
+      if (!input.name && !input.slug) {
+        return ctx.organization
+      }
+      const data: Record<string, unknown> = {}
+      if (input.name !== undefined) data.name = input.name
+      if (input.slug !== undefined) data.slug = input.slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '')
+      const updated = await ctx.prisma.organization.update({
+        where: { id: ctx.organization.id },
+        data,
+      })
+      return updated
+    }),
+
   updateCustomization: protectedProcedure
     .input(
       z.object({
@@ -189,7 +171,7 @@ export const organizationRouter = router({
         throw new TRPCError({ code: 'UNAUTHORIZED' })
       }
 
-      const updateData: any = {}
+      const updateData: Record<string, unknown> = {}
       if (input.logo !== undefined) updateData.logo = input.logo
       if (input.accentColor !== undefined) updateData.accentColor = input.accentColor
       if (input.backgroundColor !== undefined) updateData.backgroundColor = input.backgroundColor
