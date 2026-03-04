@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getOrCreateUserAndOrg } from '@/lib/get-user-org'
 import { DashboardLayoutClient } from './dashboard-layout-client'
 
 export default async function DashboardLayout({
@@ -8,38 +9,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { userId, orgId } = await auth()
+  const { userId } = await auth()
 
   if (!userId) {
     redirect('/sign-in')
   }
 
-  // Ensure user exists in DB (fallback if webhook didn't run yet)
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  })
+  const clerkUser = await currentUser()
+  const { organization } = await getOrCreateUserAndOrg(prisma, userId, clerkUser ?? undefined)
 
-  if (!dbUser) {
-    const clerkUser = await currentUser()
-    const email = clerkUser?.emailAddresses?.[0]?.emailAddress || ''
-    const name =
-      clerkUser?.firstName && clerkUser?.lastName
-        ? `${clerkUser.firstName} ${clerkUser.lastName}`.trim()
-        : clerkUser?.firstName || clerkUser?.lastName || null
-
-    await prisma.user.create({
-      data: {
-        clerkId: userId,
-        email,
-        name,
-      },
-    })
+  const currentOrg = {
+    id: organization.id,
+    name: organization.name,
   }
 
-  const hasOrganization = !!orgId
-
   return (
-    <DashboardLayoutClient hasOrganization={hasOrganization}>
+    <DashboardLayoutClient currentOrg={currentOrg}>
       {children}
     </DashboardLayoutClient>
   )

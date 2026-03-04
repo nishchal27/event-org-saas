@@ -54,14 +54,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     setTrpcAuthErrorHandler((error) => {
       const code = error.data?.code
       if (code === 'UNAUTHORIZED') {
-        // Often "no organization" (signed in but orgId undefined) — redirect to create/select org.
-        // If user is not signed in, dashboard layout will redirect from there to /sign-in.
         toast({
-          title: 'Organization required',
-          description: 'Create or select an organization to continue.',
+          title: 'Session needed',
+          description: 'Please sign in again or refresh the page.',
           variant: 'destructive',
         })
-        window.location.href = '/create-organization'
+        if (typeof window !== 'undefined') {
+          const path = window.location.pathname || ''
+          if (!path.startsWith('/dashboard')) {
+            window.location.href = '/dashboard'
+          }
+        }
       } else if (code === 'FORBIDDEN') {
         toast({
           title: 'Access denied',

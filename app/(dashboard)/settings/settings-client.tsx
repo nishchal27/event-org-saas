@@ -28,6 +28,7 @@ export function SettingsClient() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
   
+  const [workspaceName, setWorkspaceName] = useState('')
   const [logo, setLogo] = useState<string | null>(null)
   const [accentColor, setAccentColor] = useState('#3b82f6')
   const [backgroundColor, setBackgroundColor] = useState<'light' | 'dark'>('light')
@@ -36,12 +37,23 @@ export function SettingsClient() {
   // Initialize state when organization data loads
   useEffect(() => {
     if (organization) {
+      setWorkspaceName(organization.name || '')
       setLogo(organization.logo || null)
       setAccentColor(organization.accentColor || '#3b82f6')
       setBackgroundColor((organization.backgroundColor as 'light' | 'dark') || 'light')
       setFontStyle((organization.fontStyle as 'default' | 'modern' | 'classic') || 'default')
     }
   }, [organization])
+
+  const updateOrgMutation = trpc.organization.update.useMutation({
+    onSuccess: () => {
+      toast({ title: 'Saved', description: 'Workspace name updated.' })
+      utils.organization.getCurrent.invalidate()
+    },
+    onError: (error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    },
+  })
 
   const updateMutation = trpc.organization.updateCustomization.useMutation({
     onSuccess: () => {
@@ -94,7 +106,34 @@ export function SettingsClient() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl">
+        <div className="max-w-3xl space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Workspace name</CardTitle>
+              <CardDescription>
+                This name appears in the sidebar and on your event pages.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="workspace-name">Name</Label>
+                <Input
+                  id="workspace-name"
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
+                  placeholder="My Events"
+                  className="mt-1 max-w-md"
+                />
+              </div>
+              <Button
+                onClick={() => updateOrgMutation.mutate({ name: workspaceName.trim() || undefined })}
+                disabled={updateOrgMutation.isPending || !workspaceName.trim() || workspaceName === organization?.name}
+              >
+                {updateOrgMutation.isPending ? 'Saving…' : 'Save name'}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Event Page Customization</CardTitle>

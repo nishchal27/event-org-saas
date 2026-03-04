@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { isEarlyAccess } from '@/lib/early-access'
+import { getOrCreateUserAndOrg } from '@/lib/get-user-org'
+import { currentUser } from '@clerk/nextjs/server'
 
 const ALLOWED_PLANS = ['monthly', 'monthly_pro'] as const
 
@@ -14,8 +16,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Early access is not active' }, { status: 400 })
   }
 
-  const { userId, orgId } = await auth()
-  if (!userId || !orgId) {
+  const { userId } = await auth()
+  if (!userId) {
     const url = new URL('/sign-in', request.url)
     return NextResponse.redirect(url)
   }
@@ -27,20 +29,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const org = await prisma.organization.findUnique({
-    where: { clerkOrgId: orgId },
-  })
-  if (!org) {
-    const url = new URL('/pricing', request.url)
-    url.searchParams.set('error', 'no_org')
-    return NextResponse.redirect(url)
-  }
+  const clerkUser = await currentUser()
+  const { organization } = await getOrCreateUserAndOrg(prisma, userId, clerkUser ?? undefined)
 
   await prisma.subscription.upsert({
-    where: { organizationId: org.id },
+    where: { organizationId: organization.id },
     update: { plan, status: 'active' },
     create: {
-      organizationId: org.id,
+      organizationId: organization.id,
       plan,
       status: 'active',
     },

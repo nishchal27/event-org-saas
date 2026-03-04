@@ -192,6 +192,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'organization.created': {
+        // Kept for backward compatibility. New workspaces are created in-app (DB-only) via getOrCreateUserAndOrg.
         const { id, name, slug, image_url, created_by } = evt.data
         console.log('✅ Processing organization.created:', { id, name, slug, created_by })
 

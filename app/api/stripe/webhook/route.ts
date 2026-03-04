@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
         if (orgId && plan) {
           const organization = await prisma.organization.findUnique({
-            where: { clerkOrgId: orgId },
+            where: { id: orgId },
           })
 
           if (organization) {

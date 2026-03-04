@@ -2,17 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import Stripe from 'stripe'
 import { isEarlyAccess } from '@/lib/early-access'
+import { getOrCreateUserAndOrg } from '@/lib/get-user-org'
+import { prisma } from '@/lib/prisma'
+import { currentUser } from '@clerk/nextjs/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 })
 
 export async function GET(request: NextRequest) {
-  const { userId, orgId } = await auth()
+  const { userId } = await auth()
 
-  if (!userId || !orgId) {
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const clerkUser = await currentUser()
+  const { organization } = await getOrCreateUserAndOrg(prisma, userId, clerkUser ?? undefined)
+  const orgId = organization.id
 
   const searchParams = request.nextUrl.searchParams
   const plan = searchParams.get('plan')

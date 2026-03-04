@@ -2,10 +2,16 @@
 
 import { createContext, useContext } from 'react'
 
-type DashboardOrgContextValue = { hasOrganization: boolean }
+export type CurrentOrg = { id: string; name: string }
+
+type DashboardOrgContextValue = {
+  hasOrganization: boolean
+  currentOrg: CurrentOrg | null
+}
 
 const DashboardOrgContext = createContext<DashboardOrgContextValue>({
   hasOrganization: false,
+  currentOrg: null,
 })
 
 export function useDashboardOrg() {
