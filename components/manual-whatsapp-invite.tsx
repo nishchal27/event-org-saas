@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,14 +30,7 @@ export function ManualWhatsAppInvite({ event, onMessageGenerated }: ManualWhatsA
   const [isEditing, setIsEditing] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Generate message template from event details
-  useEffect(() => {
-    if (!isEditing && !message) {
-      generateMessage()
-    }
-  }, [event, isEditing])
-
-  const generateMessage = () => {
+  const generateMessage = useCallback(() => {
     const eventUrl = `${window.location.origin}/event/${event.publicSlug}`
     const startDate = typeof event.eventDate === 'string' ? new Date(event.eventDate) : event.eventDate
     const endDate = event.endDate ? (typeof event.endDate === 'string' ? new Date(event.endDate) : event.endDate) : null
@@ -74,7 +67,14 @@ ${event.description}
 
     setMessage(generatedMessage)
     onMessageGenerated?.(generatedMessage)
-  }
+  }, [event, onMessageGenerated])
+
+  // Generate message template from event details
+  useEffect(() => {
+    if (!isEditing && !message) {
+      generateMessage()
+    }
+  }, [isEditing, message, generateMessage])
 
   const copyToClipboard = async () => {
     try {

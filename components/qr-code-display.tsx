@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Download, Copy, Check } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 
 interface QRCodeDisplayProps {
   qrCode: string
@@ -98,11 +99,12 @@ export function QRCodeDisplay({ qrCode, eventTitle, eventId }: QRCodeDisplayProp
           transition={{ duration: 0.3 }}
           className="p-4 bg-white rounded-lg shadow-lg"
         >
-          <img
+          <Image
             src={qrDataUrl}
             alt="QR Code for Check-in"
+            width={320}
+            height={320}
             className="w-64 h-64 aspect-square object-contain"
-            style={{ aspectRatio: '1 / 1' }}
           />
         </motion.div>
         <p className="mt-4 text-sm font-medium text-foreground">

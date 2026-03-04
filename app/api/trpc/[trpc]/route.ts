@@ -62,7 +62,8 @@ const handler = async (req: NextRequest) => {
           type,
           code: error.code,
           userId: ctx?.userId ?? undefined,
-          organizationId: ctx?.orgId ?? undefined,
+          // Organization is added by protectedProcedure middleware; may not exist for public routes
+          organizationId: (ctx as any)?.organization?.id ?? undefined,
         })
       },
     })
