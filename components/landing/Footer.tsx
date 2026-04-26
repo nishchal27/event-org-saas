@@ -127,13 +127,13 @@ export function Footer() {
               </p>
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
                 <Link
-                  href="#"
+                  href="/privacy"
                   className="transition-colors hover:text-foreground"
                 >
                   Privacy
                 </Link>
                 <Link
-                  href="#"
+                  href="/terms"
                   className="transition-colors hover:text-foreground"
                 >
                   Terms
