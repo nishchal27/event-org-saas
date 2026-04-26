@@ -14,6 +14,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks/clerk/test',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/privacy',
+  '/terms',
   '/monitoring', // Sentry tunnel route - must be public
 ])
 
