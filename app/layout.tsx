@@ -126,10 +126,10 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
-      signInFallbackRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard"
+    signInUrl="/sign-in"
+    signUpUrl="/sign-up"
+    afterSignInUrl="/dashboard"
+    afterSignUpUrl="/create-organization"
     >
       <html lang="en" suppressHydrationWarning>
         <body className={inter.className}>
