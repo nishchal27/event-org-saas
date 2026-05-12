@@ -52,9 +52,10 @@ export function computeEventSchedule(input: EventScheduleInput): EventSchedule {
   const end = DateTime.fromISO(`${endDateISO}T${endTime}`, { zone: tz })
   if (!end.isValid) throw new Error('Invalid event end datetime')
 
-  const opensBefore = Math.max(0, input.checkInOpensMinutesBefore ?? 30)
+  const opensBefore = Math.max(0, input.checkInOpensMinutesBefore ?? 60)
   const closesAfter = Math.max(0, input.checkInClosesMinutesAfter ?? 240)
-  const regClosesBefore = Math.max(0, input.registrationClosesMinutesBeforeStart ?? 0)
+  // Positive values close registration before start; negative values close it after start.
+  const regClosesBefore = input.registrationClosesMinutesBeforeStart ?? -120
 
   const registrationClosesAt = start.minus({ minutes: regClosesBefore })
   const checkInOpensAt = start.minus({ minutes: opensBefore })
