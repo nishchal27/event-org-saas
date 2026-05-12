@@ -350,7 +350,7 @@ export const eventRouter = router({
             customField2Value: z.string().optional().nullable(),
             maxCapacity: z.number().int().positive().optional().nullable(),
             timeZone: z.string().min(1).optional(),
-            registrationClosesMinutesBeforeStart: z.number().int().min(0).max(7 * 24 * 60).optional(),
+            registrationClosesMinutesBeforeStart: z.number().int().min(-7 * 24 * 60).max(7 * 24 * 60).optional(),
             checkInOpensMinutesBefore: z.number().int().min(0).max(24 * 60).optional(),
             checkInClosesMinutesAfter: z.number().int().min(0).max(7 * 24 * 60).optional(),
             selfCheckInEnabled: z.boolean().optional(),

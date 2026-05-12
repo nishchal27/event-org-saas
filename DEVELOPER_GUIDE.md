@@ -213,6 +213,8 @@ model Event {
 }
 ```
 
+Note: The Prisma defaults above are persisted database defaults for backward compatibility. The dashboard self check-in settings UI applies newer organizer-friendly defaults when configuring self check-in.
+
 #### Attendee
 Event registration/RSVP with check-in tracking.
 
@@ -269,9 +271,33 @@ It produces:
 - `checkInClosesAt`
 
 Defaults:
-- `checkInOpensMinutesBefore = 30`
+- `checkInOpensMinutesBefore = 60`
 - `checkInClosesMinutesAfter = 240`
-- `registrationClosesMinutesBeforeStart = 0`
+- `registrationClosesMinutesBeforeStart = -120`
+
+### Offset conventions
+- `checkInOpensMinutesBefore` is a non-negative minute offset from the event start. Example: `60` means check-in opens 1 hour before start.
+- `checkInClosesMinutesAfter` is a non-negative minute offset from the event end. Example: `240` means check-in closes 4 hours after the event end.
+- `registrationClosesMinutesBeforeStart` uses the existing field name for backward compatibility, but it now supports both sides of the event start:
+  - Positive values close registration before the event starts. Example: `60` means 1 hour before start.
+  - `0` closes registration at the event start.
+  - Negative values close registration after the event starts. Example: `-120` means 2 hours after start.
+
+Do not add a new database field for "registration closes after start". Use the signed value convention above so existing saved records remain compatible.
+
+### Dashboard self check-in settings UI
+The organizer-facing settings live in `app/(dashboard)/events/[id]/checkin/checkin-client.tsx`.
+
+Current beginner-friendly defaults:
+- Self check-in switch: on by default in the settings UI.
+- Open self check-in: 1 hour before event start (`60`).
+- Close self check-in: 4 hours after event end (`240`).
+- Stop registrations: 2 hours after event start (`-120`).
+- Timezone: event timezone, falling back to `Asia/Kolkata`.
+
+The UI intentionally uses shadcn/Radix select controls with plain-language options instead of raw minute inputs. It also shows a live schedule preview using `computeEventSchedule`, so the displayed times match backend enforcement.
+
+When an existing event already had self check-in enabled, the settings UI preserves its saved timing values. When an event did not previously have self check-in enabled, the UI initializes with the current beginner-friendly defaults above.
 
 ### Enforcement points
 Time windows are enforced in `server/routers/attendee.ts`:
@@ -284,6 +310,8 @@ Time windows are enforced in `server/routers/attendee.ts`:
 ### Edge cases
 - If `endTime` is missing, the schedule assumes **+2 hours** (avoids “never-ending check-in”).
 - Multi-day events are supported via `endDate`.
+- Legacy events with positive `registrationClosesMinutesBeforeStart` values continue to close registration before event start.
+- Events saved with negative `registrationClosesMinutesBeforeStart` values close registration after event start.
 
 ---
 
@@ -445,6 +473,8 @@ There are **two first-class check-in modes**:
 - Attendee scans the **Event QR** printed at the venue.
 - Attendee enters **phone** (+ **venue PIN** when enabled).
 - Backend enforces time window and PIN.
+- Organizer configures the timing from plain-language dropdowns on `/events/[id]/checkin`; raw minute fields are intentionally hidden from the primary UI.
+- The settings page is biased toward a beginner-friendly setup: open 1 hour before start, close 4 hours after event end, and stop registrations 2 hours after event start.
 
 2) **Staff scanning (optional)**
 - Organizer opens `/events/[id]/scan`.
@@ -461,6 +491,12 @@ There are **two first-class check-in modes**:
 
 ### Idempotency
 - If an attendee is already checked in, the API returns success-like data (no scary errors).
+
+### Implementation notes
+- Keep `Event.selfCheckInPinHash` write-only from the UI perspective. The organizer can set/replace a PIN, but the plaintext PIN is never loaded back into the form.
+- `registrationClosesMinutesBeforeStart` is signed. Negative values are valid and mean "after event start"; do not clamp them to zero in scheduling code.
+- `server/routers/event.ts` allows the registration close offset range `-7 * 24 * 60` through `7 * 24 * 60` minutes. Check-in open/close offsets remain non-negative.
+- `lib/event-schedule.ts` is the shared source for both enforcement and schedule previews. Avoid duplicating date math in the UI.
 
 ---
 

@@ -7,11 +7,116 @@ import { QRCodeDisplay } from '@/components/qr-code-display'
 import { ArrowLeft, Users, CheckCircle2, Clock, ScanLine, QrCode as QrCodeIcon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { computeEventSchedule } from '@/lib/event-schedule'
+
+const SELF_CHECK_IN_DEFAULTS = {
+  opensBefore: 60,
+  closesAfter: 240,
+  registrationClosesBefore: -120,
+  timeZone: 'Asia/Kolkata',
+}
+
+const OPEN_SELF_CHECK_IN_OPTIONS = [
+  { label: 'At event start', value: 0 },
+  { label: '15 minutes before', value: 15 },
+  { label: '30 minutes before', value: 30 },
+  { label: '1 hour before', value: 60 },
+  { label: '2 hours before', value: 120 },
+  { label: '6 hours before', value: 360 },
+  { label: '1 day before', value: 1440 },
+]
+
+const CLOSE_SELF_CHECK_IN_OPTIONS = [
+  { label: 'At event end', value: 0 },
+  { label: '30 minutes after', value: 30 },
+  { label: '1 hour after', value: 60 },
+  { label: '2 hours after', value: 120 },
+  { label: '4 hours after', value: 240 },
+  { label: '8 hours after', value: 480 },
+  { label: '1 day after', value: 1440 },
+]
+
+const REGISTRATION_CLOSE_OPTIONS = [
+  { label: '1 day before event starts', value: 1440 },
+  { label: '6 hours before event starts', value: 360 },
+  { label: '1 hour before event starts', value: 60 },
+  { label: '30 minutes before event starts', value: 30 },
+  { label: '15 minutes before event starts', value: 15 },
+  { label: 'At event start', value: 0 },
+  { label: '30 minutes after event starts', value: -30 },
+  { label: '1 hour after event starts', value: -60 },
+  { label: '2 hours after event starts', value: -120 },
+  { label: '4 hours after event starts', value: -240 },
+]
+
+function withCurrentTimingOption(
+  options: Array<{ label: string; value: number }>,
+  value: number,
+  suffix: string
+) {
+  if (options.some((option) => option.value === value)) return options
+  const customSuffix = value < 0 ? 'after event starts' : suffix
+  return [...options, { label: `Custom: ${Math.abs(value)} minutes ${customSuffix}`, value }]
+}
+
+function formatScheduleDate(date: import('luxon').DateTime) {
+  return date.toFormat('h:mm a \'on\' d LLL yyyy')
+}
+
+function toEventDate(value: Date | string) {
+  return value instanceof Date ? value : new Date(value)
+}
+
+function TimingSelect({
+  id,
+  label,
+  helperText,
+  value,
+  options,
+  onChange,
+}: {
+  id: string
+  label: string
+  helperText: string
+  value: number
+  options: Array<{ label: string; value: number }>
+  onChange: (value: number) => void
+}) {
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={String(value)} onValueChange={(nextValue) => onChange(Number(nextValue))}>
+        <SelectTrigger id={id} className="mt-1">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={String(option.value)}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
+    </div>
+  )
+}
+
+type ScheduleSummary =
+  | {
+      isReady: true
+      items: Array<{ label: string; value: string }>
+    }
+  | {
+      isReady: false
+      message: string
+    }
 
 export function CheckInClient({ eventId }: { eventId: string }) {
   const router = useRouter()
@@ -22,13 +127,71 @@ export function CheckInClient({ eventId }: { eventId: string }) {
   const updateEventMutation = trpc.event.update.useMutation()
   const [searchPhone, setSearchPhone] = useState('')
   const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null)
-  const [selfCheckInEnabled, setSelfCheckInEnabled] = useState(false)
+  const [selfCheckInEnabled, setSelfCheckInEnabled] = useState(true)
   const [venuePin, setVenuePin] = useState('')
   const [checkInOpensMinutesBefore, setCheckInOpensMinutesBefore] = useState<number>(30)
   const [checkInClosesMinutesAfter, setCheckInClosesMinutesAfter] = useState<number>(240)
   const [registrationClosesMinutesBeforeStart, setRegistrationClosesMinutesBeforeStart] = useState<number>(0)
   const [timeZone, setTimeZone] = useState<string>('Asia/Kolkata')
   const [didInitSettings, setDidInitSettings] = useState(false)
+
+  const openSelfCheckInOptions = useMemo(
+    () => withCurrentTimingOption(OPEN_SELF_CHECK_IN_OPTIONS, checkInOpensMinutesBefore, 'before'),
+    [checkInOpensMinutesBefore]
+  )
+  const closeSelfCheckInOptions = useMemo(
+    () => withCurrentTimingOption(CLOSE_SELF_CHECK_IN_OPTIONS, checkInClosesMinutesAfter, 'after'),
+    [checkInClosesMinutesAfter]
+  )
+  const registrationCloseOptions = useMemo(
+    () => withCurrentTimingOption(REGISTRATION_CLOSE_OPTIONS, registrationClosesMinutesBeforeStart, 'before event starts'),
+    [registrationClosesMinutesBeforeStart]
+  )
+
+  const scheduleSummary = useMemo<ScheduleSummary>(() => {
+    if (!event?.eventDate || !event?.startTime) {
+      return {
+        isReady: false,
+        message: 'Add an event date and start time to preview the exact check-in schedule.',
+      }
+    }
+
+    try {
+      const schedule = computeEventSchedule({
+        eventDate: toEventDate(event.eventDate),
+        endDate: event.endDate ? toEventDate(event.endDate) : null,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        timeZone,
+        checkInOpensMinutesBefore,
+        checkInClosesMinutesAfter,
+        registrationClosesMinutesBeforeStart,
+      })
+
+      return {
+        isReady: true,
+        items: [
+          { label: 'Check-in opens', value: formatScheduleDate(schedule.checkInOpensAt) },
+          { label: 'Check-in closes', value: formatScheduleDate(schedule.checkInClosesAt) },
+          { label: 'Registration closes', value: formatScheduleDate(schedule.registrationClosesAt) },
+        ],
+      }
+    } catch {
+      return {
+        isReady: false,
+        message: 'The event date, time, or timezone needs a quick check before we can preview the schedule.',
+      }
+    }
+  }, [
+    event?.eventDate,
+    event?.endDate,
+    event?.startTime,
+    event?.endTime,
+    timeZone,
+    checkInOpensMinutesBefore,
+    checkInClosesMinutesAfter,
+    registrationClosesMinutesBeforeStart,
+  ])
 
   const handleManualCheckIn = async (attendeeId: string) => {
     setSelectedAttendeeId(attendeeId)
@@ -65,13 +228,35 @@ export function CheckInClient({ eventId }: { eventId: string }) {
 
   useEffect(() => {
     if (!event || didInitSettings) return
-    setSelfCheckInEnabled(!!event.selfCheckInEnabled)
-    setCheckInOpensMinutesBefore(event.checkInOpensMinutesBefore ?? 30)
-    setCheckInClosesMinutesAfter(event.checkInClosesMinutesAfter ?? 240)
-    setRegistrationClosesMinutesBeforeStart(event.registrationClosesMinutesBeforeStart ?? 0)
-    setTimeZone(event.timeZone ?? 'Asia/Kolkata')
+    const useBeginnerDefaults = !event.selfCheckInEnabled
+    setSelfCheckInEnabled(true)
+    setCheckInOpensMinutesBefore(
+      useBeginnerDefaults ? SELF_CHECK_IN_DEFAULTS.opensBefore : event.checkInOpensMinutesBefore ?? SELF_CHECK_IN_DEFAULTS.opensBefore
+    )
+    setCheckInClosesMinutesAfter(
+      useBeginnerDefaults ? SELF_CHECK_IN_DEFAULTS.closesAfter : event.checkInClosesMinutesAfter ?? SELF_CHECK_IN_DEFAULTS.closesAfter
+    )
+    setRegistrationClosesMinutesBeforeStart(
+      useBeginnerDefaults
+        ? SELF_CHECK_IN_DEFAULTS.registrationClosesBefore
+        : event.registrationClosesMinutesBeforeStart ?? SELF_CHECK_IN_DEFAULTS.registrationClosesBefore
+    )
+    setTimeZone(event.timeZone ?? SELF_CHECK_IN_DEFAULTS.timeZone)
     setDidInitSettings(true)
   }, [event, didInitSettings])
+
+  const handleSelfCheckInEnabledChange = (checked: boolean) => {
+    const wasDisabled = !selfCheckInEnabled
+    setSelfCheckInEnabled(checked)
+    if (!checked) return
+
+    if (wasDisabled || !Number.isFinite(checkInOpensMinutesBefore)) setCheckInOpensMinutesBefore(SELF_CHECK_IN_DEFAULTS.opensBefore)
+    if (wasDisabled || !Number.isFinite(checkInClosesMinutesAfter)) setCheckInClosesMinutesAfter(SELF_CHECK_IN_DEFAULTS.closesAfter)
+    if (wasDisabled || !Number.isFinite(registrationClosesMinutesBeforeStart)) {
+      setRegistrationClosesMinutesBeforeStart(SELF_CHECK_IN_DEFAULTS.registrationClosesBefore)
+    }
+    if (!timeZone.trim()) setTimeZone(event?.timeZone ?? SELF_CHECK_IN_DEFAULTS.timeZone)
+  }
 
   if (isLoading) {
     return (
@@ -222,7 +407,7 @@ export function CheckInClient({ eventId }: { eventId: string }) {
                     Requires a venue PIN to prevent remote check-ins.
                   </p>
                 </div>
-                <Switch checked={selfCheckInEnabled} onCheckedChange={setSelfCheckInEnabled} />
+                <Switch checked={selfCheckInEnabled} onCheckedChange={handleSelfCheckInEnabledChange} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -254,40 +439,51 @@ export function CheckInClient({ eventId }: { eventId: string }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor="opensBefore">Opens (min before)</Label>
-                  <Input
-                    id="opensBefore"
-                    type="number"
-                    min={0}
-                    value={checkInOpensMinutesBefore}
-                    onChange={(e) => setCheckInOpensMinutesBefore(Number(e.target.value))}
-                    className="mt-1"
-                  />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <TimingSelect
+                  id="opensBefore"
+                  label="Open self check-in"
+                  helperText="Attendees can start checking in at this time."
+                  value={checkInOpensMinutesBefore}
+                  options={openSelfCheckInOptions}
+                  onChange={setCheckInOpensMinutesBefore}
+                />
+                <TimingSelect
+                  id="closesAfter"
+                  label="Close self check-in"
+                  helperText="Attendees can no longer check in after this time."
+                  value={checkInClosesMinutesAfter}
+                  options={closeSelfCheckInOptions}
+                  onChange={setCheckInClosesMinutesAfter}
+                />
+                <TimingSelect
+                  id="regCloseBefore"
+                  label="Stop registrations"
+                  helperText="New registrations will be blocked after this time."
+                  value={registrationClosesMinutesBeforeStart}
+                  options={registrationCloseOptions}
+                  onChange={setRegistrationClosesMinutesBeforeStart}
+                />
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Schedule preview
                 </div>
-                <div>
-                  <Label htmlFor="closesAfter">Closes (min after)</Label>
-                  <Input
-                    id="closesAfter"
-                    type="number"
-                    min={0}
-                    value={checkInClosesMinutesAfter}
-                    onChange={(e) => setCheckInClosesMinutesAfter(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="regCloseBefore">Reg closes (min before)</Label>
-                  <Input
-                    id="regCloseBefore"
-                    type="number"
-                    min={0}
-                    value={registrationClosesMinutesBeforeStart}
-                    onChange={(e) => setRegistrationClosesMinutesBeforeStart(Number(e.target.value))}
-                    className="mt-1"
-                  />
-                </div>
+                {scheduleSummary.isReady ? (
+                  <div className="space-y-2 text-sm">
+                    {scheduleSummary.items.map((item) => (
+                      <div key={item.label} className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="text-muted-foreground">{item.label}</span>
+                        <span className="font-medium">{item.value}</span>
+                      </div>
+                    ))}
+                    <p className="pt-1 text-xs text-muted-foreground">Timezone: {timeZone || SELF_CHECK_IN_DEFAULTS.timeZone}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{scheduleSummary.message}</p>
+                )}
               </div>
 
               <Button onClick={handleSaveSelfCheckInSettings} disabled={updateEventMutation.isLoading} className="w-full">
